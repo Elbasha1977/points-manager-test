@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام النقاط والتحفيز المدرسي - المدير العام</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"; }</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: Tahoma, Arial; }
+body { background: linear-gradient(135deg, #dbeafe, #c7d2fe); padding: 20px; min-height: 100vh; }
+.container { max-width: 1400px; margin: auto; display: none; }
+.header { background: white; border-radius: 25px; padding: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); text-align: center; }
+.header h1 { color: #4338ca; margin-bottom: 10px; font-size: 28px; }
+.header p { color: #666; font-size: 16px; }
+.header .badge { background: linear-gradient(135deg, #4338ca, #8b5cf6); color: white; padding: 8px 20px; border-radius: 30px; display: inline-block; margin-top: 15px; font-weight: bold; }
+.datetime-rectangle { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 10px 20px; border-radius: 20px; border: 2px solid #d4af37; display: inline-block; margin-top: 15px; direction: ltr; }
+.datetime-rectangle .time-text { color: #22c55e; font-size: 18px; font-weight: bold; font-family: monospace; letter-spacing: 2px; }
+.datetime-rectangle .date-text { color: #d4af37; font-size: 12px; font-weight: bold; margin-bottom: 3px; font-family: monospace; }
+.sync-status { text-align: center; background: #e0f2fe; color: #075985; padding: 10px; border-radius: 12px; margin: 15px auto; max-width: 400px; font-weight: bold; }
+.buttons-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 25px; }
+.action-btn { padding: 18px 20px; border: none; border-radius: 16px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.action-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+.action-btn.primary { background: linear-gradient(135deg, #4338ca, #6366f1); }
+.action-btn.success { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.action-btn.warning { background: linear-gradient(135deg, #ea580c, #f59e0b); }
+.action-btn.danger { background: linear-gradient(135deg, #dc2626, #ef4444); }
+.action-btn.info { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+.section { background: white; border-radius: 20px; padding: 25px; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+.section h2 { color: #4338ca; margin-bottom: 20px; font-size: 24px; }
+.login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 10000; display: none; justify-content: center; align-items: center; padding: 20px; }
+.login-card { background: white; border-radius: 30px; padding: 40px 30px; width: 100%; max-width: 450px; text-align: center; box-shadow: 0 25px 45px rgba(0,0,0,0.2); }
+.login-card h2 { color: #4338ca; margin-bottom: 8px; font-size: 22px; }
+.login-card p { color: #666; margin-bottom: 20px; font-size: 14px; }
+.login-card input { width: 100%; padding: 15px; margin: 10px 0; border: 2px solid #e2e8f0; border-radius: 25px; font-size: 16px; text-align: right; direction: ltr; }
+.login-card input:focus { outline: none; border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.1); }
+.login-card button { width: 100%; padding: 15px; background: linear-gradient(135deg, #4338ca, #8b5cf6); color: white; border: none; border-radius: 25px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+.login-card button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(67,56,202,0.3); }
+.login-card .error { color: #ef4444; margin: 10px 0; font-size: 14px; min-height: 20px; }
+.remember-me { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 10px 0; font-size: 14px; color: #555; cursor: pointer; }
+.remember-me input { width: 18px; height: 18px; cursor: pointer; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+.modal-content { background: white; border-radius: 25px; padding: 25px; max-width: 900px; width: 100%; max-height: 85vh; overflow-y: auto; direction: rtl; position: relative; }
+.modal-close { position: absolute; top: 15px; left: 15px; background: #dc2626; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer; z-index: 10; }
+.modal h2 { color: #e91e63; margin-bottom: 20px; text-align: center; }
+.requests-list { max-height: 400px; overflow-y: auto; }
+.country-box { background: #e0e7ff; border: 1px solid #c7d2fe; border-radius: 14px; padding: 12px; margin: 10px 0; }
+.country-box h3 { color: #312e81; margin-bottom: 10px; font-size: 18px; }
+.school-box { background: white; border: 1px solid #dbeafe; border-radius: 12px; padding: 12px; margin: 10px 0; }
+.school-box h4 { color: #0f172a; margin-bottom: 8px; font-size: 16px; }
+.request-card { border-top: 1px solid #e2e8f0; padding: 12px 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; }
+.request-info { flex: 1; min-width: 200px; }
+.request-info b { color: #1e40af; }
+.request-info small { color: #64748b; display: block; margin-top: 4px; }
+.request-actions { display: flex; gap: 6px; }
+.request-actions button { padding: 8px 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; font-size: 13px; }
+.approve-btn { background: #16a34a; }
+.reject-btn { background: #dc2626; }
+.empty-message { text-align: center; padding: 30px; color: #15803d; font-weight: bold; background: white; border-radius: 12px; }
+.loading { text-align: center; padding: 30px; color: #666; }
+.stat-card { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); border-radius: 15px; padding: 20px; text-align: center; }
+.stat-card .number { font-size: 32px; font-weight: bold; color: #4338ca; }
+.stat-card .label { font-size: 14px; color: #555; margin-top: 5px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+.manual-approve-box { background: #f0fdf4; border: 2px solid #86efac; border-radius: 15px; padding: 20px; margin-top: 20px; }
+.manual-approve-box h3 { color: #15803d; margin-bottom: 15px; }
+.manual-approve-box input { width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 10px; margin-bottom: 10px; font-size: 14px; }
+.manual-approve-box button { background: #16a34a; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 15px; }
+.staff-search { margin-bottom: 15px; }
+.staff-search input { width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 12px; font-size: 15px; }
+.staff-search input:focus { outline: none; border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.1); }
+
+/* تنسيقات Live Worksheets */
+.lws-tool-btn { background: #e2e8f0; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; color: #334155; transition: 0.2s; }
+.lws-tool-btn:hover { background: #cbd5e1; }
+.lws-field { position: absolute; background: rgba(255,255,255,0.9); border: 2px solid #4338ca; border-radius: 5px; padding: 2px; cursor: move; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 12px; overflow: hidden; min-width: 50px; min-height: 30px; }
+.lws-field:hover { border-color: #e91e63; z-index: 10; }
+.lws-field .delete-field-btn { position: absolute; top: -10px; right: -10px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: none; align-items: center; justify-content: center; }
+.lws-field:hover .delete-field-btn { display: flex; }
+.lws-field input, .lws-field textarea { width: 100%; height: 100%; border: none; background: transparent; text-align: center; font-family: inherit; outline: none; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<!-- شاشة تسجيل الدخول -->
+<div id="loginScreen" class="login-overlay">
+    <div class="login-card">
+        <h2>📚 نظام النقاط والتحفيز المدرسي</h2>
+        <p>لوحة المدير العام</p>
+        <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" dir="ltr" value="a.atia1201@education.qa">
+        <input type="password" id="loginPassword" placeholder="كلمة المرور">
+        <label class="remember-me">
+            <input type="checkbox" id="rememberMe" checked>
+            <span>🔒 تذكرني (دخول تلقائي في المرات القادمة)</span>
+        </label>
+        <button id="loginBtn">🔐 دخول</button>
+        <div id="loginError" class="error"></div>
+    </div>
+</div>
+
+<!-- الواجهة الرئيسية -->
+<div id="mainApp" class="container">
+    <div class="header">
+        <h1>👨‍💼 لوحة المدير العام</h1>
+        <p>إدارة طلبات الموظفين والمدارس</p>
+        <div class="badge">📧 <span id="currentUserEmail">—</span></div>
+        <div class="datetime-rectangle" id="datetimeDisplay">
+            <div class="date-text">📅 جاري التحميل...</div>
+            <div class="time-text">🕐 --:--:--</div>
+        </div>
+    </div>
+
+    <div id="syncStatus" class="sync-status">☁️ جاري الاتصال...</div>
+
+    <div class="buttons-grid">
+        <button class="action-btn primary" id="refreshBtn">🔄 تحديث</button>
+        <button class="action-btn info" id="requestsBtn">👥 طلبات الموظفين</button>
+        <button class="action-btn success" id="staffListBtn">👨‍🏫 الموظفون المعتمدون</button>
+        <button class="action-btn warning" id="manualApproveBtn">➕ اعتماد يدوي</button>
+        <button class="action-btn danger" id="logoutBtn">🚪 تسجيل الخروج</button>
+    </div>
+
+    <div class="section">
+        <h2>📊 إحصائيات النظام</h2>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="number" id="totalRequests">0</div><div class="label">طلبات معلقة</div></div>
+            <div class="stat-card"><div class="number" id="totalStaff">0</div><div class="label">موظفون معتمدون</div></div>
+            <div class="stat-card"><div class="number" id="totalSchools">0</div><div class="label">مدارس مسجلة</div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 آخر الطلبات المعلقة</h2>
+        <div id="quickRequestsList" class="loading">جارٍ التحميل...</div>
+    </div>
+</div>
+
+<!-- مودال طلبات الموظفين -->
+<div id="requestsModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="document.getElementById('requestsModal').style.display='none'">✕</button>
+        <h2>👥 طلبات الموظفين المعلقة</h2>
+        <div id="requestsList" class="requests-list"><div class="loading">جارٍ التحميل...</div></div>
+        <div style="text-align:center; margin-top:20px;">
+            <button class="action-btn primary" onclick="loadAllRequests()">🔄 تحديث القائمة</button>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إدارة الموظفين المعتمدين -->
+<div id="staffListModal" class="modal">
+    <div class="modal-content" style="max-width:1100px;">
+        <button class="modal-close" onclick="document.getElementById('staffListModal').style.display='none'">✕</button>
+        <h2>👨‍🏫 إدارة الموظفين المعتمدين</h2>
+        <div class="staff-search">
+            <input type="search" id="staffSearchInput" placeholder="🔎 ابحث بالبريد / الدولة / المدرسة / المادة...">
+        </div>
+        <div id="staffListContainer" style="max-height:60vh; overflow-y:auto;">
+            <div class="loading">⏳ جارٍ تحميل الموظفين...</div>
+        </div>
+        <div style="text-align:center; margin-top:20px;">
+            <button class="action-btn primary" onclick="loadAllStaff()">🔄 تحديث القائمة</button>
+        </div>
+    </div>
+</div>
+
+<!-- مودال الاعتماد اليدوي -->
+<div id="manualApproveModal" class="modal">
+    <div class="modal-content" style="max-width:600px;">
+        <button class="modal-close" onclick="document.getElementById('manualApproveModal').style.display='none'">✕</button>
+        <h2>➕ اعتماد موظف يدوياً</h2>
+        <div class="manual-approve-box">
+            <h3>أدخل بريد الموظف المسجل</h3>
+            <p style="color:#666; font-size:13px; margin-bottom:15px;">سيتم البحث عن حسابه  وتفعيله إذا كان موجوداً في قاعدة البيانات.</p>
+            <input type="email" id="manualApproveEmail" placeholder="employee@education.qa" dir="ltr">
+            <button id="manualApproveSubmit">✅ اعتماد الآن</button>
+            <div id="manualApproveMessage" style="margin-top:15px; font-weight:bold;"></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- مودال قراءة إجابات الطلاب وتصحيحها -->
+<div id="studentAnswersModal" class="modal" style="z-index:1060;">
+  <div class="modal-content" style="max-width:1200px;width:96%;max-height:90vh;display:flex;flex-direction:column;">
+    <button class="modal-close" onclick="closeStudentAnswers()">✕</button>
+    <h2 style="color:#1e3a8a;">📚 إجابات الطلاب والتصحيح</h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <select id="answersWorksheetFilter" onchange="loadStudentAnswers()" style="padding:10px;border:1px solid #cbd5e1;border-radius:8px;flex:1;min-width:220px;">
+        <option value="">كل أوراق العمل</option>
+      </select>
+      <button class="action-btn primary" onclick="loadStudentAnswers()">🔄 تحديث الإجابات</button>
+    </div>
+    <div id="studentAnswersList" style="overflow:auto;flex:1;"><div class="loading">⏳ جارٍ تحميل إجابات الطلاب...</div></div>
+  </div>
+</div>
+<!-- مودال Live Worksheets -->
+<div id="liveWorksheetsModal" class="modal" style="z-index: 1050;">
+    <div class="modal-content" style="max-width: 1200px; width: 95%; height: 90vh; display: flex; flex-direction: column;">
+        <button class="modal-close" onclick="closeLiveWorksheets()">✕</button>
+        <h2>📝 Live Worksheets</h2>
+        <div id="lwsListView" style="flex: 1; overflow-y: auto;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <button class="action-btn primary" onclick="showCreateWorksheet()" style="font-size: 18px;">➕ إنشاء ورقة جديدة</button>
+            </div>
+            <div id="lwsList" class="loading">⏳ جارٍ تحميل الأوراق...</div>
+        </div>
+        <div id="lwsEditorView" style="display: none; flex: 1; flex-direction: column;">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 10px; flex-wrap: wrap;">
+                <input type="text" id="lwsTitle" placeholder="عنوان ورقة العمل..." style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex: 1; min-width: 200px;">
+                <select id="lwsTemplateSelect" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc;" onchange="applySmartTemplate()">
+                    <option value="">-- تطبيق قالب ذكي --</option>
+                    <option value="A">قالب A (4 فراغات + 2 كتابة)</option>
+                    <option value="B">قالب B (4 اختيار + 2 ترتيب + 2 تصحيح)</option>
+                    <option value="C">قالب C (5 فراغات + 2 تصحيح)</option>
+                </select>
+                <button class="action-btn success" onclick="saveLiveWorksheet()" style="padding: 10px 20px;">💾 حفظ الورقة</button>
+                <button class="action-btn danger" onclick="showLwsList()" style="padding: 10px 20px;">إلغاء</button>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                <span style="font-weight: bold; padding: 5px;">إضافة حقل:</span>
+                <button class="lws-tool-btn" onclick="addField('short_text')">📝 نص قصير</button>
+                <button class="lws-tool-btn" onclick="addField('long_text')">📋 نص طويل</button>
+                <button class="lws-tool-btn" onclick="addField('mcq')">🔘 اختيار من متعدد</button>
+                <button class="lws-tool-btn" onclick="addField('correct')">✏️ تصحيح خطأ</button>
+                <button class="lws-tool-btn" onclick="addField('rearrange')">🔀 ترتيب كلمات</button>
+            </div>
+            <div style="flex: 1; overflow: auto; border: 2px dashed #ccc; border-radius: 10px; position: relative; background: #f1f5f9; text-align: center; padding: 20px;" id="lwsCanvasContainer">
+                <input type="file" id="lwsFileInput" accept="image/*,application/pdf" style="display: none;" onchange="handleFileUpload(event)">
+                <div id="lwsUploadArea" onclick="document.getElementById('lwsFileInput').click()" style="cursor: pointer; padding: 50px;">
+                    <div style="font-size: 50px;">📄</div>
+                    <h3 style="color: #475569; margin-top: 10px;">انقر هنا لرفع ورقة العمل (صورة أو PDF)</h3>
+                    <p style="color: #94a3b8;">سيتم تحويلها إلى صورة تفاعلية</p>
+                </div>
+                <div id="lwsWorkspace" style="display: none; position: relative; display: inline-block;">
+                    <img id="lwsBaseImage" style="max-width: 100%; display: block; user-select: none;">
+                    <div id="lwsFieldsLayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div><script>
+// ==================== Firebase Configuration ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyCAeHOVGUpG7WcPcUh0XtBvmTwLGdcBCJE",
+    authDomain: "school-points-qatar.firebaseapp.com",
+    projectId: "school-points-qatar",
+    storageBucket: "school-points-qatar.firebasestorage.app",
+    messagingSenderId: "689880020347",
+    appId: "1:689880020347:web:24305b6f89ac3448acb9de"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const firebaseAuth = firebase.auth();
+const firestoreDb = firebase.firestore();
+const usersRef = firestoreDb.collection('users');
+const requestsRef = firestoreDb.collection('staffRequests');
+const schoolsRef = firestoreDb.collection('schools');
+
+const ADMIN_UID = 'hwPgzTQbdfUJa45G2Wwc79ANNJE2';
+const ADMIN_EMAIL = 'a.atia1201@education.qa';
+
+let firebaseCurrentUser = null;
+let firebaseProfile = null;
+
+// ==================== التحقق المركزي من ترخيص نسخة المدير ====================
+const POINTS_APP_ID = 'points';
+const POINTS_FUNCTIONS_REGION = 'us-central1';
+let pointsLicenseVerified = false;
+let pointsLicenseCheckPromise = null;
+
+// مشاركة نفس طلب التحقق إذا وصل تسجيل الدخول واستعادة الجلسة في الوقت نفسه.
+async function verifyPointsLicense() {
+    if (pointsLicenseCheckPromise) return pointsLicenseCheckPromise;
+
+    pointsLicenseCheckPromise = (async () => {
+        pointsLicenseVerified = false;
+        if (!firebaseAuth.currentUser) throw new Error('يجب تسجيل الدخول أولاً.');
+        if (typeof firebase.app().functions !== 'function') {
+            throw new Error('مكتبة Firebase Functions لم تُحمّل. حدّث الصفحة ثم حاول مرة أخرى.');
+        }
+        const licenseFunction = firebase.app()
+            .functions(POINTS_FUNCTIONS_REGION)
+            .httpsCallable('checkAppLicense');
+
+        // لا نترك شاشة الدخول معلّقة إذا لم تستجب Cloud Function.
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                const timeoutError = new Error(
+                    'انتهت مهلة الاتصال بخادم الترخيص بعد 20 ثانية. تحقق من نشر checkAppLicense واتصال الإنترنت وسجلات Cloud Functions.'
+                );
+                timeoutError.code = 'license/timeout';
+                reject(timeoutError);
+            }, 20000);
+        });
+        let response;
+        try {
+            response = await Promise.race([
+                licenseFunction({ appId: POINTS_APP_ID }),
+                timeoutPromise
+            ]);
+        } finally {
+            clearTimeout(timeoutId);
+        }
+        const result = response && response.data ? response.data : {};
+        if (result.success !== true) {
+            throw new Error(result.message || 'الترخيص غير نشط أو غير صالح لهذه النسخة.');
+        }
+        pointsLicenseVerified = true;
+        return result;
+    })();
+
+    try {
+        return await pointsLicenseCheckPromise;
+    } catch (error) {
+        pointsLicenseVerified = false;
+        console.error('POINTS license verification failed:', error);
+        throw error;
+    } finally {
+        pointsLicenseCheckPromise = null;
+    }
+}
+
+function showLicenseError(error) {
+    const message = error && error.message ? error.message : 'تعذر التحقق من ترخيص البرنامج.';
+    const errorCode = error && error.code ? ' [' + error.code + ']' : '';
+    const errorEl = document.getElementById('loginError');
+    if (errorEl) {
+        errorEl.style.color = '#dc2626';
+        errorEl.textContent = '🔒 ' + message + errorCode;
+    }
+    showLogin();
+}
+
+
+function isValidEmail(email) {
+    return email && email.toLowerCase().endsWith('@education.qa');
+}
+
+function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+}
+
+function showMainApp() {
+    // إذا كان الرابط خاصاً بطالب، لا تظهر لوحة المدير أبداً!
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('student') === 'true') {
+        return; // اخرج من الدالة ولا تفتح لوحة المدير
+    }
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('currentUserEmail').textContent = firebaseCurrentUser ? firebaseCurrentUser.email : '—';
+    updateDateTime();
+}
+function updateDateTime() {
+    const now = new Date();
+    const el = document.getElementById('datetimeDisplay');
+    if (!el) return;
+    const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = now.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+    el.innerHTML = '<div class="date-text">📅 ' + dateStr + '</div><div class="time-text">🕐 ' + timeStr + '</div>';
+}
+
+// ==================== تسجيل الدخول ====================
+document.getElementById('loginBtn').addEventListener('click', async function() {
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
+    const errorDiv = document.getElementById('loginError');
+
+    if (!email) { errorDiv.textContent = '❌ الرجاء إدخال البريد الإلكتروني'; return; }
+    if (!isValidEmail(email)) { errorDiv.textContent = '❌ البريد يجب أن ينتهي بـ @education.qa'; return; }
+    if (!password) { errorDiv.textContent = '❌ الرجاء إدخال كلمة المرور'; return; }
+
+    errorDiv.style.color = '#f59e0b';
+    errorDiv.textContent = '⏳ جاري التحقق...';
+
+    try {
+        await firebaseAuth.setPersistence(rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
+        const cred = await firebaseAuth.signInWithEmailAndPassword(email, password);
+        const user = cred.user;
+        const profileSnap = await usersRef.doc(user.uid).get();
+        
+        if (!profileSnap.exists) {
+            await firebaseAuth.signOut();
+            errorDiv.style.color = '#dc2626';
+            errorDiv.textContent = '❌ لا يوجد ملف صلاحيات لهذا الحساب';
+            return;
+        }
+
+        const profile = profileSnap.data();
+        if (profile.role !== 'admin' || user.uid !== ADMIN_UID) {
+            await firebaseAuth.signOut();
+            errorDiv.style.color = '#dc2626';
+            errorDiv.textContent = '❌ هذا الحساب ليس المسؤول العام';
+            return;
+        }
+
+        firebaseCurrentUser = user;
+        firebaseProfile = profile;
+        errorDiv.style.color = '#f59e0b';
+        errorDiv.textContent = '⏳ تم تسجيل الدخول. جارٍ التحقق من ترخيص نسخة المدير...';
+        // onAuthStateChanged will verify the license before opening the dashboard.
+
+    } catch (err) {
+        console.error('Login error:', err);
+        errorDiv.style.color = '#dc2626';
+        const errorMessages = {
+            'auth/invalid-email': '❌ البريد الإلكتروني غير صحيح',
+            'auth/user-not-found': '❌ لا يوجد حساب بهذا البريد',
+            'auth/wrong-password': '❌ كلمة المرور غير صحيحة',
+            'auth/invalid-credential': '❌ البريد أو كلمة المرور غير صحيحة',
+            'auth/too-many-requests': '⚠️ محاولات كثيرة، حاول لاحقاً'
+        };
+        errorDiv.textContent = errorMessages[err.code] || ('❌ ' + (err.message || err.code));
+    }
+});
+
+document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+// ==================== استعادة الجلسة ====================
+firebaseAuth.onAuthStateChanged(async function(user) {
+    pointsLicenseVerified = false;
+    if (!user) {
+        firebaseCurrentUser = null;
+        firebaseProfile = null;
+        showLogin();
+        return;
+    }
+    try {
+        const profileSnap = await usersRef.doc(user.uid).get();
+        if (!profileSnap.exists) {
+            await firebaseAuth.signOut();
+            showLogin();
+            return;
+        }
+        const profile = profileSnap.data();
+        if (profile.role !== 'admin' || user.uid !== ADMIN_UID) {
+            await firebaseAuth.signOut();
+            showLogin();
+            return;
+        }
+
+        firebaseCurrentUser = user;
+        firebaseProfile = profile;
+
+        // لا تُفتح لوحة المدير إلا بعد نجاح التحقق المركزي من الترخيص.
+        await verifyPointsLicense();
+
+        showMainApp();
+        initializeDashboard();
+    } catch (e) {
+        // لا نسجل خروج المدير بسبب عطل اتصال مؤقت؛ نظهر سبب الفشل ونسمح بإعادة المحاولة.
+        console.error('Authentication/license gate error:', e);
+        firebaseCurrentUser = user;
+        showLicenseError(e);
+    }
+});
+
+setInterval(updateDateTime, 1000);
+
+// إعادة فحص الترخيص دوريًا حتى ينعكس إيقاف الترخيص أثناء بقاء الصفحة مفتوحة.
+setInterval(async function() {
+    if (!firebaseAuth.currentUser || !firebaseCurrentUser || !pointsLicenseVerified) return;
+    try {
+        await verifyPointsLicense();
+    } catch (e) {
+        // الإيقاف الحقيقي يظهر برسالة الخادم؛ لا نمسح جلسة Firebase عند خطأ شبكة عابر.
+        pointsLicenseVerified = false;
+        showLicenseError(e);
+    }
+}, 5 * 60 * 1000);
+
+// ==================== أزرار النظام ====================
+document.getElementById('refreshBtn').addEventListener('click', function() {
+    updateDateTime();
+    const statusEl = document.getElementById('syncStatus');
+    if (statusEl) { statusEl.textContent = '☁️ جاري التحديث...'; statusEl.style.background = '#fef3c7'; statusEl.style.color = '#92400e'; }
+    refreshAllData();
+    setTimeout(() => { if (statusEl) { statusEl.textContent = '☁️ تم التحديث بنجاح ✅'; statusEl.style.background = '#d1fae5'; statusEl.style.color = '#065f46'; } }, 500);
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async function() {
+    if (!confirm('هل تريد تسجيل الخروج؟')) return;
+    await firebaseAuth.signOut();
+    firebaseCurrentUser = null; firebaseProfile = null;
+    showLogin();
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').textContent = '';
+});
+
+function initializeDashboard() {
+    const statusEl = document.getElementById('syncStatus');
+    if (statusEl) { statusEl.textContent = '☁️ متصل بحساب المسؤول العام'; statusEl.style.background = '#d1fae5'; statusEl.style.color = '#065f46'; }
+    refreshAllData();
+}
+
+async function refreshAllData() {
+    await Promise.all([loadQuickRequests(), loadStatistics()]);
+}
+
+async function loadQuickRequests() {
+    const listEl = document.getElementById('quickRequestsList');
+    try {
+        const snap = await requestsRef.where('status', '==', 'pending').get();
+        if (snap.empty) { listEl.innerHTML = '<div class="empty-message">✅ لا توجد طلبات معلقة حالياً</div>'; return; }
+        listEl.innerHTML = '<p style="text-align:center;color:#4338ca;font-weight:bold;margin-bottom:15px;">📊 إجمالي: ' + snap.size + ' طلب</p>';
+        snap.docs.slice(0, 5).forEach(doc => {
+            const r = doc.data();
+            listEl.innerHTML += '<div class="request-card" style="background:#f8fafc;padding:12px;border-radius:10px;margin-bottom:8px;border-right:4px solid #4338ca;"><div class="request-info"><b>📧 ' + (r.email || '—') + '</b><small>🏫 ' + (r.schoolName || '—') + ' · ' + (r.subject || '—') + '</small></div></div>';
+        });
+    } catch (e) { listEl.innerHTML = '<div class="empty-message" style="background:#fee2e2;color:#991b1b;">⚠️ تعذر التحميل: ' + (e.message || e) + '</div>'; }
+}
+
+async function loadStatistics() {
+    try {
+        const requestsSnap = await requestsRef.where('status', '==', 'pending').get();
+        document.getElementById('totalRequests').textContent = requestsSnap.size;
+        const staffSnap = await usersRef.where('role', '==', 'staff').get();
+        let approvedCount = 0;
+        staffSnap.forEach(doc => { if (doc.data().active === true && doc.data().approved === true) approvedCount++; });
+        document.getElementById('totalStaff').textContent = approvedCount;
+        const schoolsSnap = await schoolsRef.get();
+        document.getElementById('totalSchools').textContent = schoolsSnap.size;
+    } catch (e) { console.error(e); }
+}
+
+// ==================== إدارة الطلبات ====================
+document.getElementById('requestsBtn').addEventListener('click', function() {
+    document.getElementById('requestsModal').style.display = 'flex';
+    loadAllRequests();
+});
+
+async function loadAllRequests() {
+    const listEl = document.getElementById('requestsList');
+    listEl.innerHTML = '<div class="loading">⏳ جارٍ تحميل الطلبات...</div>';
+    try {
+        const snap = await requestsRef.where('status', '==', 'pending').get();
+        if (snap.empty) { listEl.innerHTML = '<div class="empty-message">✅ لا توجد طلبات معلقة حالياً</div>'; return; }
+        
+        const groups = {};
+        snap.docs.forEach(doc => {
+            const r = doc.data();
+            const country = r.country || 'دولة غير محددة';
+            const school = r.schoolName || 'مدرسة غير محددة';
+            if (!groups[country]) groups[country] = {};
+            if (!groups[country][school]) groups[country][school] = [];
+            groups[country][school].push({ doc, data: r });
+        });
+        listEl.innerHTML = '';
+        Object.keys(groups).sort().forEach(country => {
+            const countryBox = document.createElement('div'); countryBox.className = 'country-box';
+            countryBox.innerHTML = '<h3>🌍 ' + country + '</h3>';
+            Object.keys(groups[country]).sort().forEach(school => {
+                const docs = groups[country][school];
+                const schoolBox = document.createElement('div'); schoolBox.className = 'school-box';
+                schoolBox.innerHTML = '<h4>🏫 ' + school + '</h4>';
+                docs.forEach(({ doc, data }) => {
+                    const card = document.createElement('div'); card.className = 'request-card';
+                    const classesList = Array.isArray(data.requestedClassIds) ? data.requestedClassIds.join('، ') : '—';
+                    card.innerHTML = '<div class="request-info"><b>📧 ' + (data.email || '—') + '</b><small>📚 ' + (data.subject || '—') + '</small><small>📖 الشعب: ' + classesList + '</small></div>' +
+                        '<div class="request-actions"><button class="approve-btn">✅ اعتماد</button><button class="reject-btn">❌ رفض</button></div>';
+                    card.querySelector('.approve-btn').onclick = () => approveStaffRequest(doc, data, card);
+                    card.querySelector('.reject-btn').onclick = () => rejectStaffRequest(doc, data, card);
+                    schoolBox.appendChild(card);
+                });
+                countryBox.appendChild(schoolBox);
+            });
+            listEl.appendChild(countryBox);
+        });
+    } catch (e) { listEl.innerHTML = '<div class="empty-message" style="background:#fee2e2;color:#991b1b;">⚠️ تعذر التحميل: ' + (e.message || e) + '</div>'; }
+}
+
+async function approveStaffRequest(doc, data, card) {
+    if (!confirm('اعتماد الموظف: ' + (data.email || '—') + '؟')) return;
+    try {
+        const approvedClasses = Array.isArray(data.requestedClassIds) ? data.requestedClassIds : [];
+        const tenantId = typeof data.schoolId === 'string' ? data.schoolId.trim() : '';
+        if (!tenantId || tenantId === 'main') throw new Error('طلب الموظف لا يحتوي على schoolId صالح.');
+
+        await usersRef.doc(data.uid || doc.id).set({
+            uid: data.uid || doc.id, email: data.email, role: 'staff', subject: data.subject || '',
+            schoolName: data.schoolName || '', schoolId: tenantId, country: data.country || '',
+            customerType: data.customerType || 'school', schoolType: data.schoolType || '',
+            customerId: tenantId, licenseId: tenantId,
+            classIds: approvedClasses, active: true, approved: true,
+            approvedAt: firebase.firestore.FieldValue.serverTimestamp(), approvedBy: firebaseCurrentUser.uid
+        }, { merge: true });
+
+        await doc.ref.update({ status: 'approved', approvedClassIds: approvedClasses, reviewedAt: firebase.firestore.FieldValue.serverTimestamp(), reviewedBy: firebaseCurrentUser.uid });
+
+        const tenantRef = firestoreDb.collection('schoolData').doc(tenantId);
+        const tenantSnap = await tenantRef.get();
+        if (!tenantSnap.exists) {
+            const initialClasses = {};
+            approvedClasses.forEach(classId => { initialClasses[classId] = { students: [], photos: { photo1: null, photo2: null, photo3: null } }; });
+            await tenantRef.set({ schoolId: tenantId, schoolName: data.schoolName || '', country: data.country || '', customerType: data.customerType || 'school', schoolType: data.schoolType || '', customerId: tenantId, allClassesData: initialClasses, createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: firebaseCurrentUser.uid }, { merge: true });
+        }
+        
+        const batch = firestoreDb.batch();
+        approvedClasses.forEach(classId => { batch.set(firestoreDb.collection('schoolClasses').doc(tenantId + '__' + classId), { schoolId: tenantId, classId: classId, classData: { students: [], photos: {} }, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: firebaseCurrentUser.uid }, { merge: true }); });
+        await batch.commit();
+
+        if (card) card.innerHTML = '<div style="color:#15803d;font-weight:bold;padding:10px;">✅ تم الاعتماد</div>';
+        alert('✅ تم الاعتماد بنجاح');
+        loadStatistics(); loadQuickRequests();
+    } catch (e) { alert('❌ تعذر الاعتماد: ' + e.message); }
+}
+
+async function rejectStaffRequest(doc, data, card) {
+    if (!confirm('رفض طلب الموظف؟')) return;
+    try {
+        await doc.ref.update({ status: 'rejected', reviewedAt: firebase.firestore.FieldValue.serverTimestamp(), reviewedBy: firebaseCurrentUser.uid });
+        if (card) card.innerHTML = '<div style="color:#b91c1c;font-weight:bold;padding:10px;">❌ تم الرفض</div>';
+        alert('✅ تم الرفض'); loadStatistics(); loadQuickRequests();
+    } catch (e) { alert('❌ تعذر الرفض: ' + e.message); }
+}
+
+// ==================== إدارة الموظفين ====================
+document.getElementById('staffListBtn').addEventListener('click', function() {
+    document.getElementById('staffListModal').style.display = 'flex';
+    loadAllStaff();
+});
+
+document.getElementById('staffSearchInput').addEventListener('input', function() {
+    const q = this.value.trim().toLowerCase();
+    document.querySelectorAll('#staffListContainer [data-search]').forEach(card => {
+        card.style.display = (card.getAttribute('data-search') || '').includes(q) ? 'block' : 'none';
+    });
+});
+
+async function loadAllStaff() {
+    const container = document.getElementById('staffListContainer');
+    container.innerHTML = '<div class="loading">⏳ جارٍ تحميل الموظفين...</div>';
+    try {
+        const snap = await usersRef.where('role', '==', 'staff').get();
+        if (snap.empty) { container.innerHTML = '<div class="empty-message">لا يوجد موظفون معتمدون حالياً</div>'; return; }
+        container.innerHTML = '';
+        snap.docs.forEach(doc => {
+            const d = doc.data();
+            const email = d.email || doc.id;
+            const classes = Array.isArray(d.classIds) ? d.classIds.join('، ') : '—';
+            const isActive = d.active === true && d.approved === true;
+            const card = document.createElement('div');
+            card.setAttribute('data-search', (email + ' ' + d.schoolName + ' ' + d.subject).toLowerCase());
+            card.style.cssText = 'background:white; border:1px solid #dbeafe; border-radius:14px; padding:14px; margin:10px 0; box-shadow:0 2px 8px rgba(0,0,0,0.05);';
+            card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                <div style="flex:1; min-width:200px;"><div style="font-weight:bold; color:#1e40af;">📧 ${email}</div>
+                <div style="font-size:13px; color:#475569; margin-top:5px;">🌍 ${d.country || '—'} · 🏫 ${d.schoolName || '—'}</div>
+                <div style="font-size:13px; color:#475569;">📚 ${d.subject || '—'} · 📖 ${classes}</div></div>
+                <div style="display:flex; align-items:center; gap:8px;"><span style="background:${isActive ? '#16a34a' : '#f59e0b'}; color:white; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:bold;">${isActive ? '✅ نشط' : '⏸️ موقوف'}</span></div></div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                <button class="edit-btn" style="background:#2563eb; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">✏️ تعديل</button>
+                <button class="toggle-btn" style="background:${isActive ? '#b45309' : '#16a34a'}; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">${isActive ? '⏸️ إيقاف' : '▶️ تفعيل'}</button>
+                <button class="reset-btn" style="background:#0f766e; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">🔑 كلمة المرور</button>
+                <button class="delete-btn" style="background:#dc2626; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">🗑️ حذف</button></div>`;
+            container.appendChild(card);
+            card.querySelector('.edit-btn').onclick = () => editStaff(doc.id, d);
+            card.querySelector('.toggle-btn').onclick = () => toggleStaffActive(doc.id, d);
+            card.querySelector('.reset-btn').onclick = () => sendPasswordReset(email);
+            card.querySelector('.delete-btn').onclick = () => deleteStaff(doc.id, email);
+        });
+    } catch (e) { container.innerHTML = '<div class="empty-message" style="color:red;">خطأ: ' + e.message + '</div>'; }
+}
+
+async function editStaff(uid, currentData) {
+    const country = prompt('🌍 الدولة:', currentData.country || ''); if (country === null) return;
+    const school = prompt('🏫 اسم المدرسة:', currentData.schoolName || ''); if (school === null) return;
+    const subject = prompt('📚 المادة:', currentData.subject || ''); if (subject === null) return;
+    const classesStr = prompt('📖 الشعب (مفصولة بفاصلة):', (currentData.classIds || []).join(', ')); if (classesStr === null) return;
+    const classIds = classesStr.split(',').map(c => c.trim()).filter(Boolean);
+    try { await usersRef.doc(uid).update({ country, schoolName: school, subject, classIds }); alert('✅ تم التعديل'); loadAllStaff(); } catch (e) { alert(e.message); }
+}
+
+async function toggleStaffActive(uid, currentData) {
+    const isCurrentlyActive = currentData.active === true && currentData.approved === true;
+    if (!confirm('هل تريد ' + (isCurrentlyActive ? 'إيقاف' : 'تفعيل') + ' هذا الحساب؟')) return;
+    try { await usersRef.doc(uid).update({ active: !isCurrentlyActive }); alert('✅ تم'); loadAllStaff(); loadStatistics(); } catch (e) { alert(e.message); }
+}
+
+async function sendPasswordReset(email) {
+    if (!confirm('إرسال رابط إعادة تعيين كلمة المرور إلى ' + email + '؟')) return;
+    try { await firebaseAuth.sendPasswordResetEmail(email); alert('✅ تم إرسال الرابط'); } catch (e) { alert(e.message); }
+}
+
+async function deleteStaff(uid, email) {
+    if (!confirm('⚠️ حذف حساب ' + email + ' نهائياً؟')) return;
+    try { await usersRef.doc(uid).delete(); alert('✅ تم الحذف'); loadAllStaff(); loadStatistics(); } catch (e) { alert(e.message); }
+}
+
+// ==================== الاعتماد اليدوي ====================
+document.getElementById('manualApproveBtn').addEventListener('click', function() {
+    document.getElementById('manualApproveModal').style.display = 'flex';
+    document.getElementById('manualApproveEmail').value = '';
+    document.getElementById('manualApproveMessage').textContent = '';
+});
+
+document.getElementById('manualApproveSubmit').addEventListener('click', async function() {
+    const email = document.getElementById('manualApproveEmail').value.trim().toLowerCase();
+    const msgEl = document.getElementById('manualApproveMessage');
+    if (!email || !isValidEmail(email)) { msgEl.style.color = '#dc2626'; msgEl.textContent = '❌ بريد غير صالح'; return; }
+    msgEl.style.color = '#f59e0b'; msgEl.textContent = '⏳ جارٍ البحث...';
+    try {
+        const snap = await usersRef.where('email', '==', email).get();
+        if (snap.empty) {
+            const reqSnap = await requestsRef.where('email', '==', email).where('status', '==', 'pending').get();
+            if (reqSnap.empty) { msgEl.style.color = '#dc2626'; msgEl.textContent = '❌ لم يتم العثور على حساب أو طلب'; return; }
+            await approveStaffRequest(reqSnap.docs[0], reqSnap.docs[0].data(), null);
+            msgEl.textContent = '✅ تم الاعتماد'; return;
+        }
+        await snap.docs[0].ref.update({ active: true, approved: true });
+        msgEl.style.color = '#16a34a'; msgEl.textContent = '✅ تم التفعيل'; loadStatistics();
+    } catch (e) { msgEl.style.color = '#dc2626'; msgEl.textContent = '❌ ' + e.message; }
+});
+</script><script>
+// ==================== إدارة Live Worksheets ====================
+let currentLwsFields = [];
+let currentLwsImageFile = null;
+let currentLwsImageUrl = null;
+
+// إضافة زر Live Worksheets إلى الواجهة الرئيسية برمجياً
+document.addEventListener('DOMContentLoaded', () => {
+    const buttonsGrid = document.querySelector('.buttons-grid');
+    if (buttonsGrid) {
+        const lwsBtn = document.createElement('button');
+        lwsBtn.className = 'action-btn primary';
+        lwsBtn.style.background = 'linear-gradient(135deg, #8b5cf6, #6d28d9)';
+        lwsBtn.innerHTML = '📝 Live Worksheets';
+        lwsBtn.onclick = openLiveWorksheets;
+        buttonsGrid.appendChild(lwsBtn);
+
+        const answersBtn = document.createElement('button');
+        answersBtn.className = 'action-btn success';
+        answersBtn.style.background = 'linear-gradient(135deg, #059669, #047857)';
+        answersBtn.innerHTML = '📚 إجابات الطلاب والتصحيح';
+        answersBtn.onclick = openStudentAnswers;
+        buttonsGrid.appendChild(answersBtn);
+    }
+});
+
+function openLiveWorksheets() { 
+    document.getElementById('liveWorksheetsModal').style.display = 'flex'; 
+    showLwsList(); 
+}
+
+function closeLiveWorksheets() { 
+    document.getElementById('liveWorksheetsModal').style.display = 'none'; 
+}
+
+function showLwsList() { 
+    document.getElementById('lwsListView').style.display = 'block'; 
+    document.getElementById('lwsEditorView').style.display = 'none'; 
+    loadWorksheetsList(); 
+}
+
+function showCreateWorksheet() {
+    document.getElementById('lwsListView').style.display = 'none';
+    document.getElementById('lwsEditorView').style.display = 'flex';
+    document.getElementById('lwsTitle').value = '';
+    document.getElementById('lwsTemplateSelect').value = '';
+    document.getElementById('lwsUploadArea').style.display = 'block';
+    document.getElementById('lwsWorkspace').style.display = 'none';
+    document.getElementById('lwsFieldsLayer').innerHTML = '';
+    currentLwsFields = []; currentLwsImageFile = null; currentLwsImageUrl = null;
+    document.getElementById('lwsFileInput').value = '';
+}
+
+async function loadWorksheetsList() {
+    const listEl = document.getElementById('lwsList');
+    try {
+        const snap = await firestoreDb.collection('worksheets').orderBy('createdAt', 'desc').get();
+        if (snap.empty) { listEl.innerHTML = '<div class="empty-message">لا توجد أوراق عمل حتى الآن. اضغط "إنشاء ورقة جديدة".</div>'; return; }
+        listEl.innerHTML = '';
+        snap.forEach(doc => {
+            const data = doc.data();
+            const date = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString('ar-EG') : '—';
+            const card = document.createElement('div');
+            card.style.cssText = 'background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;';
+            card.innerHTML = `
+                <div><h3 style="margin: 0; color: #1e293b;">${data.title}</h3><span style="font-size: 12px; color: #64748b;">📅 ${date} | 🖱️ ${data.fields ? data.fields.length : 0} حقول</span></div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="copyStudentLink('${doc.id}')" style="background: #0ea5e9; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold;">🔗 رابط الطالب</button>
+                    <button onclick="deleteWorksheet('${doc.id}')" style="background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold;">🗑️ حذف</button>
+                </div>`;
+            listEl.appendChild(card);
+        });
+    } catch (e) { listEl.innerHTML = '<div class="error">تعذر التحميل: ' + e.message + '</div>'; }
+}
+
+function copyStudentLink(docId) {
+    // نأخذ رابط لوحة المدير الحالي ونضيف عليه ?student=true&id=...
+    const baseUrl = window.location.href.split('?')[0];
+    const url = baseUrl + '?student=true&id=' + docId;
+    
+    navigator.clipboard.writeText(url).then(() => {
+        alert('✅ تم نسخ رابط الطالب:\n' + url);
+    });
+}
+async function deleteWorksheet(docId) {
+    if (!confirm('هل أنت متأكد من حذف ورقة العمل؟')) return;
+    try { await firestoreDb.collection('worksheets').doc(docId).delete(); loadWorksheetsList(); } catch (e) { alert(e.message); }
+}
+
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert('⚠️ الحد الأقصى 10 ميجابايت.'); event.target.value = ''; return; }
+    currentLwsImageFile = file;
+    const uploadArea = document.getElementById('lwsUploadArea');
+    const workspace = document.getElementById('lwsWorkspace');
+    const baseImage = document.getElementById('lwsBaseImage');
+    uploadArea.innerHTML = '<div style="font-size: 30px;">⏳</div><h3>جارٍ المعالجة...</h3>';
+
+    if (file.type === 'application/pdf') {
+        const fileReader = new FileReader();
+        fileReader.onload = async function() {
+            try {
+                const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 2.0 });
+                const canvas = document.createElement('canvas');
+                canvas.height = viewport.height; canvas.width = viewport.width;
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+
+                // Convert PDF page 1 into a JPEG file for Firebase Storage and student rendering.
+                const jpegBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('تعذر تحويل صفحة PDF إلى صورة')), 'image/jpeg', 0.92);
+                });
+                const safeBaseName = file.name.replace(/\.pdf$/i, '');
+                currentLwsImageFile = new File([jpegBlob], safeBaseName + '_page1.jpg', { type: 'image/jpeg' });
+
+                baseImage.onload = () => {
+                    uploadArea.style.display = 'none';
+                    workspace.style.display = 'inline-block';
+                };
+                baseImage.src = URL.createObjectURL(jpegBlob);
+            } catch (e) { alert('خطأ في PDF: ' + e.message); uploadArea.innerHTML = '<h3>❌ حدث خطأ.</h3>'; }
+        };
+        fileReader.readAsArrayBuffer(file);
+        } else {
+        // صورة عادية - يتم تحويلها لصورة حقيقية ليتم رفعها لـ Firebase
+        baseImage.src = URL.createObjectURL(file);
+        baseImage.onload = () => {
+            URL.revokeObjectURL(baseImage.src); // تنظيف الذاكرة
+            uploadArea.style.display = 'none';
+            workspace.style.display = 'inline-block';
+        };
+    }
+}
+
+function addField(type) {
+    if (!currentLwsImageFile) { alert('ارفع الورقة أولاً.'); return; }
+    const field = { id: 'field_' + Date.now(), type: type, x: 20, y: 20, w: 100, h: 30 };
+    currentLwsFields.push(field); renderField(field);
+}
+
+function applySmartTemplate() {
+    const template = document.getElementById('lwsTemplateSelect').value;
+    if (!template || !currentLwsImageFile) return;
+    if (!confirm('سيتم إضافة الحقول حسب القالب. متابعة؟')) return;
+    currentLwsFields = []; document.getElementById('lwsFieldsLayer').innerHTML = '';
+    let fields = [];
+    if (template === 'A') fields = [{ type: 'short_text', x: 25, y: 15, w: 100, h: 30 },{ type: 'short_text', x: 25, y: 22, w: 100, h: 30 },{ type: 'short_text', x: 25, y: 29, w: 100, h: 30 },{ type: 'short_text', x: 25, y: 36, w: 100, h: 30 },{ type: 'long_text', x: 15, y: 55, w: 300, h: 60 },{ type: 'long_text', x: 15, y: 70, w: 300, h: 60 }];
+    else if (template === 'B') fields = [{ type: 'mcq', x: 20, y: 15, w: 200, h: 40 },{ type: 'mcq', x: 20, y: 25, w: 200, h: 40 },{ type: 'mcq', x: 20, y: 35, w: 200, h: 40 },{ type: 'mcq', x: 20, y: 45, w: 200, h: 40 },{ type: 'rearrange', x: 15, y: 60, w: 400, h: 40 },{ type: 'rearrange', x: 15, y: 70, w: 400, h: 40 },{ type: 'correct', x: 15, y: 80, w: 400, h: 40 }];
+    else if (template === 'C') fields = [{ type: 'short_text', x: 20, y: 15, w: 100, h: 30 },{ type: 'short_text', x: 20, y: 22, w: 100, h: 30 },{ type: 'short_text', x: 20, y: 29, w: 100, h: 30 },{ type: 'short_text', x: 20, y: 36, w: 100, h: 30 },{ type: 'short_text', x: 20, y: 43, w: 100, h: 30 },{ type: 'correct', x: 15, y: 60, w: 300, h: 40 },{ type: 'correct', x: 15, y: 70, w: 300, h: 40 }];
+    fields.forEach(f => { f.id = 'field_' + Date.now() + Math.random().toString(36).substr(2, 5); currentLwsFields.push(f); renderField(f); });
+}
+
+function renderField(field) {
+    const el = document.createElement('div'); el.className = 'lws-field'; el.id = field.id;
+    el.style.left = field.x + '%'; el.style.top = field.y + '%'; el.style.width = field.w + 'px'; el.style.height = field.h + 'px';
+    let innerContent = field.type === 'short_text' ? '<span>____</span>' : field.type === 'long_text' ? '<span>نص طويل</span>' : field.type === 'mcq' ? '<span>a ○ b ○</span>' : field.type === 'correct' ? '<span>✏️ تصحيح</span>' : '<span>🔀 ترتيب</span>';
+    el.innerHTML = `<button class="delete-field-btn" onclick="removeField('${field.id}', event)">✕</button>${innerContent}`;
+    makeDraggable(el, field); document.getElementById('lwsFieldsLayer').appendChild(el);
+}
+
+function removeField(id, event) { event.stopPropagation(); currentLwsFields = currentLwsFields.filter(f => f.id !== id); document.getElementById(id).remove(); }
+
+function makeDraggable(elmnt, fieldData) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    elmnt.onmousedown = function(e) {
+        if (e.target.classList.contains('delete-field-btn')) return;
+        e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY;
+        document.onmouseup = function() { document.onmouseup = null; document.onmousemove = null; };
+        document.onmousemove = function(e) {
+            e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY;
+            let newTop = elmnt.offsetTop - pos2; let newLeft = elmnt.offsetLeft - pos1;
+            if (newTop < 0) newTop = 0; if (newLeft < 0) newLeft = 0;
+            elmnt.style.top = newTop + "px"; elmnt.style.left = newLeft + "px";
+            fieldData.y = (newTop / elmnt.parentElement.offsetHeight) * 100; fieldData.x = (newLeft / elmnt.parentElement.offsetWidth) * 100;
+        };
+    };
+}
+
+async function saveLiveWorksheet() {
+    const title = document.getElementById('lwsTitle').value.trim();
+    if (!title) return alert('أدخل عنوان الورقة.');
+    if (!currentLwsImageFile) return alert('ارفع صورة الورقة أولاً.');
+    if (currentLwsFields.length === 0) return alert('أضف حقول إجابة.');
+    // إعداد مفتاح الإجابة من المعلم لكل حقل قبل حفظ الورقة
+    const answerKey = {};
+    for (let questionIndex = 0; questionIndex < currentLwsFields.length; questionIndex++) {
+        const field = currentLwsFields[questionIndex];
+        const typeName = field.type === 'long_text' ? 'إجابة نصية طويلة' :
+            field.type === 'short_text' ? 'إجابة قصيرة' :
+            field.type === 'rearrange' ? 'ترتيب كلمات' :
+            field.type === 'mcq' ? 'اختيار من متعدد' :
+            field.type === 'correct' ? 'تصحيح/إكمال' : field.type;
+        const promptLabel = 'السؤال رقم ' + (questionIndex + 1) + ' (' + typeName + ')\\n' +
+            'مكان حقل الإجابة على صورة الورقة: أعلى ' + Math.round(field.y) + '%، جهة اليسار ' + Math.round(field.x) + '%\\n' +
+            'اكتب الإجابة النموذجية لهذا السؤال:';
+        const keyValue = prompt(promptLabel);
+        if (keyValue !== null && keyValue.trim() !== '') answerKey[field.id] = keyValue.trim();
+    }
+    const btn = document.querySelector('button[onclick="saveLiveWorksheet()"]');
+    btn.disabled = true; btn.textContent = '⏳ جارٍ الرفع...';
+    try {
+        const storageRef = firebase.storage().ref();
+        const fileRef = storageRef.child('worksheets/' + Date.now() + '_' + currentLwsImageFile.name);
+        const uploadTask = await fileRef.put(currentLwsImageFile);
+        currentLwsImageUrl = await uploadTask.ref.getDownloadURL();
+        await firestoreDb.collection('worksheets').add({ title: title, imageUrl: currentLwsImageUrl, fields: currentLwsFields, answerKey: answerKey, createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: firebaseCurrentUser.uid, schoolId: firebaseProfile ? (firebaseProfile.schoolId || 'global') : 'global' });
+        alert('✅ تم الحفظ بنجاح!'); showLwsList();
+    } catch (e) { alert('❌ خطأ: ' + e.message); } finally { btn.disabled = false; btn.textContent = '💾 حفظ الورقة'; }
+}
+</script>
+<script>
+// ==================== محرك صفحة الطالب (مدمج) ====================
+// هذا الكود يجعل لوحة المدير تتحول إلى صفحة طالب إذا كان الرابط يحتوي على ?student
+
+setTimeout(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isStudentMode = urlParams.get('student') === 'true';
+    const worksheetId = urlParams.get('id');
+
+    if (isStudentMode && worksheetId) {
+        // إخفاء لوحة المدير بالكامل
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'none';
+        
+        // إخفاء أي مودالات مفتوحة
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+
+        // إنشاء واجهة الطالب
+        const studentUI = document.createElement('div');
+        studentUI.className = 'container';
+        studentUI.style.display = 'block';
+        studentUI.innerHTML = `
+            <div class="header">
+                <h1 id="stTitle" style="color:#4338ca;">⏳ جاري تحميل الورقة...</h1>
+            </div>
+            <div class="section" id="stInfoForm">
+                <h2>بيانات الطالب</h2>
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">اختر الصف:</label>
+                    <select id="stClass" onchange="populateStudentNames()" style="width:100%; padding:12px; border-radius:10px; border:1px solid #ccc; font-size:16px;">
+<option value="">-- اختر الصف --</option>
+<option value="السادس 2">السادس 2</option>
+<option value="السادس 4">السادس 4</option>
+<option value="السادس 6">السادس 6</option>
+</select>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">اسمك:</label>
+                    <select id="stName" disabled style="width:100%; padding:12px; border-radius:10px; border:1px solid #ccc; font-size:16px;"><option value="">-- اختر الصف أولاً --</option></select>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">الرقم السري الخاص بك (4 أرقام):</label>
+                    <input id="stPin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" placeholder="أدخل الرقم السري المخصص لك" style="width:100%;padding:12px;border-radius:10px;border:1px solid #ccc;font-size:18px;text-align:center;letter-spacing:8px;">
+                </div>
+                <button id="stStartBtn" class="action-btn primary" onclick="startStudentWorksheet()" style="width:100%; font-size:18px;" disabled>⏳ جاري تحميل الورقة...</button>
+                <button type="button" class="action-btn" onclick="showMyHomeworkResults()" style="width:100%;margin-top:10px;background:#0f766e;color:white">🏅 عرض نتائج نقاط واجباتي</button>
+                <div id="myHomeworkResults" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:#ecfeff;text-align:right"></div>
+            </div>
+            
+            <div class="section" id="stWorkspace" style="display:none; position:relative; text-align:center; padding:20px; background:#f1f5f9; overflow:auto;">
+                <div style="position:relative; display:inline-block;" id="stImgContainer">
+                    <img id="stImg" style="max-width:100%; display:block; border-radius:10px;" alt="صورة ورقة العمل">
+                    <div id="stFields" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
+                </div>
+            </div>
+            <div class="section" id="stSubmitArea" style="display:none; text-align:center;">
+                <button class="action-btn success" onclick="submitStudentAnswers()" style="width:100%; font-size:18px;">✅ إرسال الإجابات</button>
+            </div>
+            
+            <div class="section" id="stSuccess" style="display:none; text-align:center;">
+                <h1 style="font-size:60px; margin:0;">🎉</h1>
+                <h2 style="color:#16a34a;">تم إرسال إجاباتك بنجاح!</h2>
+            </div>
+        `;
+        document.body.appendChild(studentUI);
+
+        // جلب الورقة من قاعدة البيانات
+        firestoreDb.collection('worksheets').doc(worksheetId).get().then(doc => {
+            if(doc.exists) {
+                window.currentStudentWorksheet = doc.data();
+                document.getElementById('stTitle').innerText = window.currentStudentWorksheet.title || 'ورقة العمل';
+                const startBtn = document.getElementById('stStartBtn');
+                startBtn.disabled = false;
+                startBtn.textContent = '🚀 ابدأ الإجابة';
+            } else {
+                document.getElementById('stTitle').innerText = '❌ الورقة غير موجودة أو تم حذفها';
+                document.getElementById('stStartBtn').textContent = 'الورقة غير متاحة';
+            }
+        }).catch(err => {
+            document.getElementById('stTitle').innerText = '❌ تعذر تحميل بيانات الورقة. تحقق من صلاحيات Firestore والاتصال.';
+            document.getElementById('stStartBtn').textContent = 'تعذر التحميل';
+            console.error('Worksheet Firestore read error:', err);
+        });
+    }
+}, 1000); // انتظار ثانية لضمان تحميل الصفحة
+
+// أسماء الطلاب الموزعة حسب الصف من ملف Student Names.xlsx
+const STUDENT_NAMES_BY_CLASS = {"الخامس 1":["اسماعيل ابراهيم","اصف رامي محجوب ابراهيم","اياد عبدالعزيز محمد المبارك","بشر رمضان","تيم حمد","خالد عبدالستار احمد مثنى الكريحى","راشد نور عنبر مسك","رسلان محمد الشريف","سيف علي أحمد المومني","عبدالرحمن علي عثمان","عبدالله سالمي","عبدالله على عبدالله منصور المرهون","عدنان خالد","على الحسن على محمد على","علي سلمان ناصر جاسم النجار","علي يوسف علي حسن الانصاري","عمر باسم محمد ابو غاليه","عمر عبدالله مصطفى ادغيم","غيث معتصم اسامه عناب","مازن ماجد محمد ابرهيم","مالك محمد سالم حسن ابراهيم","محمد عبدالله ربيع جندب الشعيبي","محمد فؤاد طه حرب","محمد مدحت جمال احمد نصار","محمد معاذ نزر","محمد وائل صلاح سعيد زهران","محمد وسام محمد الشلالفه","محمود خالد حامد سالمان محمد","مصطفى هشام محمد حسن عبدالغفار","ياسر حسين","ياسين احمد ابراهيم محمود السيد","يوسف محمد ثابت مسلم ابودوح","يوسف محمد سردا"],"الخامس 2":["أسامة محمد محمد ابراهيم الرفاعى","احمد التجاني محمد عبدالله","احمد حسني السيد عمر محمد","ادم عبدة مصطفى محمود محمد","اصيل احمد سليمان بني خالد","امين محمد ابوالسعود علي كتانه","اوس عروه عبدالرحمن الصمادى","اياد دحان احمد مسعد الشيبه","ايهاب اسامه صالح احمد","تميم مروان عوض الرزوق","جمال هاني تاج السر محمد احمد","خالد محمد علي محمد","خالد موليد على عبدالله","سلطان فريد غلامزاده","سلمان محمد فرحان شديد الدوسرى","سيدالمختار الشيخ الحضرامي","عباس علي عباس البلوله","عبد العزيز يونس الشلوت","عبدالرحمن علي محمد","عبدالله التمرو","عبدالله حمد السيد","عبدالله ناصر احمد نعمه النعمه","علي العمرو","علي نبيل صابر علي امين","عمر محمد عوض الطيب","ماجد مرشد حزام مرشد التبالي","مالك سعيد عبدالعزيز حسن فاطمه","محمد طاهر سمير حطاب","محمد مبارك جابر حسن الجابر","محمد ياسر محمد أحمد","يامن صلاح عبد الرحيم بني عطا","يحيى اكرم جزاع الكفاوين","يس محمد الصديق محمد صالح"],"الخامس 3":["أمجد أحمد محمود عبدالقادر علي","أوس حسام الحريري","احمد الطيب احمد عبدالرحمن","احمد حمزه حجي السليم","ادم سامر جبر ابو لبده","امير اكرم يوسف الصالحي","تيم فؤاد بخيت حوراني","حسن علي حسن مجغف","حمد طلال عباد يحيى حسين","خالد ثابت الجميره","خليفة حمد يوسف حسين الزبيرى","رياض بوحدة","سيف سامر احمد على البلوشى","عبدالحميد محمد عبدالحميد محمد احمد","عبدالرحمن السلوم","عبدالكريم عبود رجاء","عبدالله جبران محمد حنيف","عبدالله خالد صالح مبارك الحميدى","عدى حاتم محمد صقر","علاء ماجد عبده محمد الجبلي","علي محسن صالح محمد التام","عمر حسين","فرحان محمد فؤاد","كريم عمرو علي اسماعيل علي الجزار","محمد جاسم","محمد عبدالرحمن زقوت","مصطفى احمد مصطفى حسن سيد","معاذ محمد سمحى تهامى عبداللطيف","مهدي انس الاحمد","ناصر احمد عبيد احمد الصديقى","ياسر زاهد رحمان","يوسف اسلام ربيع عيسى احمد","يوسف خالد حسن عبده"],"الخامس 4":["احمد طاهر محمد حنيف","احمد علي صالح علي العبد","المجد عبدالحميد عمران عربيات","باسل محمد ادم عبدالعزيز","تاج الدين ايمن علي حراحشه","تميم خالد الفاتح عبدالمنعم","تيسير عدنان ابو خالد","راشد احمد سعيد الزبون","راشد محمد عيد احمد خليل","ساجد محمد احمد الطيب محمد","سلطان زايد احمد محمد عبدالرب","عبد الرحمن خالد الشبيب","عبدالرحمن عمر ادريس حامد","عبدالعزيز سحيم عزيز الخالق","عبدالعزيز على محمد فرج عبدالله","عبدالله حامد ابراهيم ابراهيم","عبدالله محمد ناصر احمد الشيبه","علي طلال عبد القادر علي","غسان طارق محجوب محمد","محمد عاصم احمد ادم","محمد علي محمد الهناندة","محمد فواد ابراهيم حسان","محمد معارج نزر","مرتقى عزت الطيب عطية الله","معاذ صالح عمر سراج","ناصر فيصل محمد ابراهيم العبدالله","هاني احمد محمود محمد العزب","يحيى جاسم","يزن البشير يوسف البشير","يزيد صفوت علي عمر علي","يوسف حامد عبدالمنعم بابكر","يوسف فهد يوسف محمد العبيدلى","يوسف وليد محمد علي العنسي"],"الخامس 5":["ابراهيم برير التوم الشيخ النور","ابراهيم خليل","احمد محمد احمد قاسم","احمد محمد فوزى رمضان عبدالوهاب","احمد مصطفى عبده احمد رمضان","ادم محمدزين دغمش","ادم محمود سعد مصطفى القاضي","تركي احمد محمد علي عون الله","تميم راشد محمد اسحاق حسين","تميم ناصر فالح عبدالله الدوسرى","ثامر ناجي علي ناجي العقر","حسام محمد عبدالتواب رزق عبدالجواد","سالم حمد سالم جابر مشعاب","سيف الله محمد سالم احمد صالح","سيف نبيل منسى ابراهيم يوسف","عامر عبدالناصر عبدالحكم كفراوي عبدالعال","عبدالرحمن رشاد عبدالله على سالم","عبدالله محمد تيسير محمد العطار","عبدالله محمد عثمان حسيني العزب","عزالدين حسان احمد ابوشمله","علي احمد درويش","عمر راشد احمدى كلنكى","عمر وليد اسماعيل على مرجان","كرم اسامه جميل ابو الندى","مازن محمد مدحت السيد محمود","مالك خالد محمد جمال الدين عبدالعزيز","محمد المجتبي الامين احمد محمد","محمد عبدالعظيم تاج السر مكاوي","مشعل جمعان منيف ناجي الشرفى","نزار معاويه محمد بشاره","هاشم عمر هاشم عبدالرحمن","هاشم مالك محمد الطويل","يزن مجدي عرفات علي ابو رجب"],"الخامس 6":["ارام محسن احمد","اسحيم داود على احمد حسين","البراء عمر محمد ابو قديري","المجد مؤنس فيصل الخطيب","الياس محمد سليمان زعارير","تيم مظفر الحمدان","حمد محمد محمد ناصر الرياشى","حمزة رمضان ابوالعزم احمد الفرت","حمزه فراس دبيس","خالد ابراهيم قايد زين كريب","خالد سنان عبدالله الهلالات","راكان اشرف زهدي ابوعفيفه","ريان محمود علي عميره","صهيب رائد محمد بني مفرج","عاصم سيد سليمان عبدالعليم","عبداللطيف محمد عيسى محمد الشاعر","علي غصوب السعيفان","علي محمد علي غلوم العجمي","عمر هيثم راشد صالح الهاشمي","فارس محمد جمال جابر محمد","فهد على محمد","قصي محمد معتوق","محمد اسامه فتحى ابو الحسن محمد حمزه","محمد اسامه فوزي عبيدات","محمد اسامه ناجح ابونصره","محمد وليد النور عبدالرحمن","محمد ياسر ابراهيم نمر دوله","منيف الحافظ","موفق سالم اعسر","ناصر عبدالله ناصر عبدالله العمادى","نبيل اسماعيل ضيف الله معيض","يزيد محمد مصطفى عبدالحميد ايوب","يوسف محمد جميل"],"الخامس 7":["ابوبكر ابراهيم اسماعيل عوض","احمد شريف محمود محمد محمود","احمد عمر عبدالغفار الدويك","احمد ياسر عرفات محمد صباح الخير","اسلام محمد انس حسان احمد","امير زيد نواف الدويري","جاسم محمد ايوب","جاسم محمد عبدالمحسن الصالح","حامد جاسم عبدالخالق محمد","حمد عبدالله محمد عبدالله العمادى","حمد فضاله مبارك الفضاله السليطى","خالد عبدالرحمن ناصر أحمد البكري","خالد عمر عبدالرحمن","خليل محمد خليل طباشه","راكان رحمة الله","زيد انيس جميل العمري","سيف الدين احمد محمد صابر عكاشه","صالح محمد عيسى محمد الشاعر","طارق زياد محمد قاسم","عبدالعزيز زايد نور احمد نور","عبدالله هانى محمد صبرى اسماعيل","قيس احمد جميل ربابعه","مالك اشرف هاشم غريب","محمد ابراهيم حمدي رفاعي فرج","محمد خالد سعيد غابش الخميسي","محمد عبدالحكيم يوسف صالحي الهاشمي","محمد عبدالمنعم محمد الشيخ","محمد عمر غازي يوسف","محمد فائز رمضان عبدالله","محمد هيثم محمد عثمان","محمود غانم محمد ابراهيم","منصور محمود محمد عبد العال حسن","موفق بلال بسرك"],"السادس 1":["أحمد بابكر تاج الدين صغيرون","أحمد محمود عبدالوهاب عبدالحليم عرابي","احمد سامح حلمى عوض عبدالباقى","احمد مروان الياس علي محمد","احمدجاد محمدانور الزعيم","انس احمد حمدى محمود ابوقتله","اياد محمد عبدالجواد جاد محمود","تميم ماهر السر محمدخير","تميم هشام رجب احمد محمود","جاسم محمد ناصر سليم الحجري","حمدان بشير احمد","حميدي حمد خضر","سعود جاسم جمعه محمد الفجيرى","عبدالعزيز خليل الرحمن عبدالحنان","علي سيف جاسم مجبل السليطى","علي يلدز","فهد جاسم بدر جاسم الحاى","فهد رائد حمود سلوم الجميلي","قصي محمد عباس يوسف","مالك عامر صالح احمد الحامد","محمد أحمد بشير محمود زعرب","محمد السيد محمود على الشربيني","محمد ايسم مهران القاسمي","محمد عبدالعزيز كرمى","محمد عبدالوهاب بابكر حسن","محمد عيد محمد ابوجسوم البدر","مهدي أكرم المحرسي","مهند محمود ابراهيم ماضي","ميار علاء الحريري","وضاح على موسى احمد احمد","يزن محمد شعبان عيد حمتو","يوسف سغاله","يوسف محمد جاكرى"],"السادس 2":["أحمد عمر احمد عبدالرحمن الجهرمى","احمد الامين احمد الامين","احمد على فالح الجمل","احمد غلام احمد تاج كاركشا","السمؤال عبدالمسامح الزين النور","الهادي سمير الحاج عبدالله","انس اشرف انيس شاهين","تميم المعتزبالله عادل احمد البحلس","جاسم احمد صالح عبدالله السحيقى","جاسم محمد فاضل الشقيرى المهندى","حمد محمد فاروق","خالد سعيد عبد الحميد عبد الغفار محمد","خالد عبدالعزيز","خالد محمد خالد القوربه","ريان احمد سفيان الجمل","ريان بشار حمزه","زياد بوحده","سليمان زياد سليمان عبدالخالق","صالح احمد عبدالقادر حموده","صالح عون علي محمد القمش","عمر يونس الشلوت","عناب معتصم اسامه عناب","فهد احمد ابراهيم حمد الطوالبة","مؤتمن منتصر يعقوب عبدالقادر احمد","مالك عزام ذياب عبدالمالك","محمد شوقي قاسم فاضل","محمد عبدالله","محمد عيسى احمد محمد الحمادى","محمد كريم محمد على حسن طه","مسعود احمد مسعود العبري","هزاع جمال علي الجعل","ياسين عماد مسعد حامد الصباغ","يحيى احمد عاطف عبدالسلام العبد"],"السادس 3":["أحمد عبدالله احمد عبدالله المطوع","أنس امير السيد عثمان محمد","ابراهيم محمد عبدالعزيز عيسى عمرو","ابوبكر يعقوب محمدالحبيب الامين","احمد قاسم احمد سعيد النوفلي","احمد محمد احمد محمد صالح","ادم عبدالله شيخ دين","تيسير محمد تيسير العطار","تيم حميد نزار كعوش","جادالرحمن رأفت محمد ابوسليم","حسين على احمدى","حمد خالد رحيل معيوف الشمرى","حمد سعيد يوسف عبدالله حاجى","حمد صالح عيسى احمد","حمزه محمد لعرج شيبى محمد","خالد محمد فاروق سلامة الاسمر","راشد زين احمد زين","ساجي عبدالرحيم عبدالله حميدة احمد","سعيد ابراهيم سعيد عبدالسميع مخيمر","سيف صلاح الدين على احمد الجنابي","عبدالرحمن امير خلوف","عبدالرحمن محمد محمد عبدالرازق جمعه","عبدالله حمد سالم راشد ابوشارب","علي عبداللة علي بادار","علي محمد رجب عبدالعزيز أحمد","عمر عبدالله االسالك","عيسى محمد يوسف حكيم خان","محمد عتيق محمد العتيق الدوسرى","ناصـر يسلم سالم بدر جحاف","نايف الدين امام الدين","ياسين احمد مصطفى عبدالجليل يس","يوسف محمد احمد محمد عبدالحميد"],"السادس 4":["أحمد يوسف أحمد عبد الله العبدلي","أواب ابوالقاسم حسن جادالله","احمد خليفة سالم المحروقي","الياس محمد زين دغمش","باسل عمار ياسر احمد محمود","براء فوزي بلدي","بلال محمد محمد محمد حسين","تميم عبدالله سلطان على العلى","حمزة امير السيد عثمان محمد","حمزه شادى عبدالكريم قاسم","خليفه محمد قائد علي العتولى","راشد احمد راشد على الشرشنى","ضياء الدين هشام النيل سعيد","عبدالله عبدالعزيز على ال شاهين السليطى","عبدالهادى سليمان الهادي اسحق","عمر محمد احمد حسين","غانم يحيى صالح عبدالله العبيدى","فهد عبدالعليم","فواز فيصل ادهام فيصل المهندى","كنان فادي مروان الرواشده","مالك محمد انس الفوال","محمد الخواض محمدالامين محمدنور","محمد سيف الرحمن عبدالمنعم حسين حنفى","محمد عبدالناصر ثابت الفتى","معاذ محمد احمد عواد احمد","ناجي ياسين العلي","نصر موفق نصر جوهره","هيثم علي محمد الرقب","ورد نورالدين العسلى","وليد عاقب فيصل على","يمان عمر محمدعبدالوهاب ابوشريعه","يوسف اشرف مصطفي محمد علي","يوسف عصام يوسف بابكر"],"السادس 5":["ابراهيم عاصم احمد ادم","احمد نورالدين حسين عبدالحليم","امان الله عماد الجمني","حسن محمد حسن محمد السليطى","حسين مراد رحمانيان كوشككى","حمد ادريس فضل رحمان","حمزة احمد جمال محروس حداد","حمزة صبري محمد السيد خير","حمزة هايل مثنى علي الابارة","خالد بخيت مسلم بخيت المهري","راغب محمد غازي الاكشر","رامي محمد قسم السيد الصديق","سيف ابراهيم محمود بدران","عبدالرحمن فؤاد يوسف اسماعيل شقوره","عبدالرحمن وسام عبدالرحمن خليل","عبدالعزيز الحسن علي محمد علي","عبدالله احمد مراد امين","عدي هيثم اسماعيل العداسي","علي محمد محمد ناصر الرياشى","عمر أمين محمد حسين قاسم","فهد خالد فيصل الرمزانى النعيمى","فهد وليد","مؤمن منتصر يعقوب عبدالقادر احمد","ماجد فضل محسن عوض حسن","محمد ابوعبيدة آدم شيخ الأمين","محمد احمد الطيب محمد احمد","محمد صلاح سيدهاشم سيدمحمد الهاشمى","محمد عوض الله الطيب ابراهيم","محمد معاذ هاشم بشير","مصطفى محمد ياسين","مهند محمد بكرى ياسين طه","ناصر منير عبدربه حسن احمد","يحيى الدفراوى عبدالفتاح عبدالحميد"],"السادس 6":["احمد علي حسن الصائغ","احمد محمد على سيد","بهاء محمد عبدالحميد الشاقلدي","تميم حسين زين عبدالناصر السعدى","حسام احمد جبريل حبيب","ريان بشير حسن الروسان","سعد بدر عبدالله حسين البلوشى","عاطف الله توصيف الله","عبدالرحمن رشيد عبدالرشيد","عبدالرحمن محمد محمود محمد ابووطفه","عبدالرحمن محمد هيثم محسن","عزالدين محمد عيد زكي على","على ابراهيم سعيد مخيمر","على اسلام على كامل سويفى","علي حسن على سويد المالكى","عمار سعيد محمد علي اسعد","عمر أحمد بدر ابوالمجد النجار","فيصل محمد المحمد الظاهر الحمد","قصي محمد عبدالله عبدالقوي محمد","مبارك خالد مسعود جوهر العبدالله","محمد ديسم منتصر مفتاح","محمد عبدالرحمن على برات حمزوي","محمد عبدالله موسى العبسي","محمد عبدالله يوسف موسى","محمد عمر احمد الشيخ","محمد عمر سالم الزاكى","محمد عمر عبدي","محمد عمر موسى الجراجره","محمد لؤي وسوف","محمد ناهض مسعود الحداد","محمدعثمان زكريا محمد زكريا","هذال فهد سيدهاشم سيدمحمد الهاشمى","يوسف ابراهيم عبدالله حاجى الخورى"],"السادس 7":["أحمد ابراهيم مهدى منصور المرهون","ابراهيم عبدالله حسن الصائغ","ابراهيم هشام ابراهيم عوض موسى","احمد سامح موسى محمد سعيد","احمد علاء عزام بطاينه","اسر موسى صلاح علي عبدالعزيز","اوس محمد مصطفى محمد البيك","اياد زاهد عثمان حسن","براء فيصل البريني","تميم رياض محمد وارث خان","تميم عبدالعليم محمد شلبي","جابر منصور على محمد اسلم","حازم عمر محمد عبدالنبى حبيب","حمد عبدالله مسعد طاهر الاشول","خالد يوسف محمد محمود مقداد","سعد فيصل محمد عبدالله الانصارى","طارق مهدي العلواني","عبدالرحمن حمد جاسم المحيمد","عبدالعزيز نادر محمد اليافعي","عبدالوهاب فائز رمضان عبدالله","على مراد رحمانيان كوشككى","علي سالم صالح سعيدان المرى","عمر ابراهيم المحمد الذياب","عمر احمد محمد عبدالفتاح عبدالمقصود","عمر محمد علي ابو عايشه","محمد امير السيد عثمان محمد","محمد عبدالسلام محمد قايد ضيف الله","محمداويس رامي الزعبي","منصور على عبدالله منصور المرهون","يحيى موفق محمود عنانزه","يوسف ابراهيم عبدالله حاجى الخورى","يوسف شمس  الرحمن زايداك بادشاه","يوسف عبدالقادر محمد عبدالرب السعدى","يوسف هاني تنبان"]};
+window.populateStudentNames = function() {
+  const cls = document.getElementById('stClass').value;
+  const nameSelect = document.getElementById('stName');
+  nameSelect.innerHTML = '';
+  if (!cls || !STUDENT_NAMES_BY_CLASS[cls]) {
+    nameSelect.disabled = true;
+    nameSelect.innerHTML = '<option value="">-- اختر الصف أولاً --</option>';
+    return;
+  }
+  nameSelect.disabled = false;
+  nameSelect.innerHTML = '<option value="">-- اختر اسم الطالب --</option>';
+  STUDENT_NAMES_BY_CLASS[cls].forEach(name => {
+    const option = document.createElement('option');
+    option.value = name; option.textContent = name;
+    nameSelect.appendChild(option);
+  });
+};
+// دوال الطالب
+async function homeworkSha256(value) {
+    const bytes = new TextEncoder().encode(String(value));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function homeworkNormalizeName(value) {
+    return String(value || '').trim().replace(/\s+/g,' ').toLowerCase();
+}
+window.startStudentWorksheet = async function() {
+    const cls = document.getElementById('stClass').value;
+    const name = document.getElementById('stName').value;
+    const pin = (document.getElementById('stPin') && document.getElementById('stPin').value || '').trim();
+    if(!cls || !name) return alert('الرجاء اختيار الصف واسم الطالب من القائمة');
+    if(!/^\d{4}$/.test(pin)) return alert('أدخل الرقم السري المكوّن من 4 أرقام.');
+    if(!window.currentStudentWorksheet || !window.currentStudentWorksheet.imageUrl) {
+        return alert('لم يتم تحميل صورة ورقة العمل بعد. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
+    }
+
+    const schoolId = String(window.currentStudentWorksheet.schoolId || 'global');
+    const studentKey = await homeworkSha256(schoolId + '|' + cls + '|' + homeworkNormalizeName(name));
+    const pinHash = await homeworkSha256(studentKey + '|' + pin);
+    // تحقق من الرقم السري في Firebase قبل فتح الورقة.
+    // قواعد Firestore تشترط worksheetId وتستخدمه لفحص قفل الإرسال.
+    const worksheetId = new URLSearchParams(window.location.search).get('id');
+    if (!worksheetId) {
+        alert('تعذر تحديد ورقة العمل. افتح الرابط المرسل من المعلم مرة أخرى.');
+        return;
+    }
+    try {
+        await firestoreDb.collection('student_pin_checks').add({
+            schoolId: schoolId,
+            studentKey: studentKey,
+            studentName: name,
+            studentClass: cls,
+            worksheetId: worksheetId,
+            studentPinHash: pinHash,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch(pinError) {
+        console.warn('Student PIN validation failed:', {
+            code: pinError && pinError.code,
+            message: pinError && pinError.message,
+            schoolId: schoolId,
+            studentKey: studentKey,
+            studentClass: cls,
+            worksheetId: worksheetId
+        });
+        const msg = String((pinError && pinError.message) || '');
+        if (msg.includes('permission') || (pinError && pinError.code === 'permission-denied')) {
+            alert('تعذر التحقق من الرقم. تأكد أن المدير أنشأ رقمك لهذا الصف والمدرسة، وأن قواعد Firestore المحدّثة منشورة. إذا سبق أن أرسلت هذه الورقة فسيمنعك النظام من إرسالها مرة أخرى.');
+        } else {
+            alert('تعذر التحقق من الرقم السري. راجع المعلم للتأكد من إنشاء رقمك، ثم حاول مرة أخرى.');
+        }
+        return;
+    }
+    window.currentStudentIdentity = { schoolId, studentKey, pinHash, studentName: name, studentClass: cls };
+    document.getElementById('stInfoForm').style.display = 'none';
+    document.getElementById('stWorkspace').style.display = 'block';
+    document.getElementById('stSubmitArea').style.display = 'block';
+
+    const img = document.getElementById('stImg');
+    // تثبيت معالج التحميل قبل تعيين رابط الصورة، وعدم فرض CORS على عرض الصورة.
+    img.onload = () => {
+        const fieldsDiv = document.getElementById('stFields');
+        fieldsDiv.innerHTML = '';
+        window.currentStudentWorksheet.fields.forEach(f => {
+            const el = document.createElement('div');
+            el.style.cssText = `position:absolute; background:#fef08a; border:2px dashed #ca8a04; border-radius:5px; display:flex; align-items:center; justify-content:center; left:${f.x}%; top:${f.y}%; width:${f.w}px; height:${f.h}px;`;
+            
+            let inputHtml = '';
+            if(f.type === 'short_text') inputHtml = `<input type="text" id="${f.id}" style="width:100%; height:100%; border:none; background:transparent; text-align:center; font-weight:bold; outline:none;">`;
+            else if(f.type === 'long_text') inputHtml = `<textarea id="${f.id}" style="width:100%; height:100%; border:none; background:transparent; resize:none; outline:none; padding:5px;"></textarea>`;
+            else inputHtml = `<input type="text" id="${f.id}" style="width:100%; height:100%; border:none; background:transparent; text-align:center; font-weight:bold; outline:none;">`;
+            
+            el.innerHTML = inputHtml;
+            fieldsDiv.appendChild(el);
+        });
+    };
+    img.onerror = () => {
+        document.getElementById('stWorkspace').style.display = 'none';
+        document.getElementById('stSubmitArea').style.display = 'none';
+        document.getElementById('stInfoForm').style.display = 'block';
+        document.getElementById('stTitle').innerText = '❌ تعذر عرض الصورة. تحقق من رابط الصورة وصلاحيات Firebase Storage.';
+        alert('تعذر تحميل صورة الورقة. قد يكون رابط Firebase Storage غير صالح أو لا يسمح بالوصول.');
+    };
+    img.src = window.currentStudentWorksheet.imageUrl;
+}
+
+window.showMyHomeworkResults = async function(){
+ const cls=document.getElementById('stClass').value, name=document.getElementById('stName').value;
+ const box=document.getElementById('myHomeworkResults'); box.style.display='block';
+ if(!cls||!name){box.innerHTML='<b style="color:#b91c1c">اختر الصف واسمك أولاً لعرض نتائجك.</b>';return;}
+ box.innerHTML='⏳ جارٍ تحميل نتائجك...';
+ try{
+  const school=(window.currentStudentWorksheet&&window.currentStudentWorksheet.schoolId)||'global';
+  const snap=await firestoreDb.collection('homework_results').where('schoolId','==',school).where('studentClass','==',cls).where('studentName','==',name).get();
+  if(snap.empty){box.innerHTML='<b>لا توجد نتائج منشورة لك حتى الآن.</b>';return;}
+  const items=snap.docs.map(d=>d.data()).sort((a,b)=>((b.awardedAt&&b.awardedAt.toMillis)?b.awardedAt.toMillis():0)-((a.awardedAt&&a.awardedAt.toMillis)?a.awardedAt.toMillis():0));
+  box.innerHTML='<h3 style="margin-top:0;color:#0f766e">نتائجك المعتمدة</h3>'+items.map(x=>'<div style="padding:9px;margin:7px 0;background:white;border-radius:8px;border:1px solid #99f6e4"><b>'+safeStudentResult(x.worksheetTitle)+'</b><div>الدرجة: <b>'+Number(x.score||0)+' / '+Number(x.maxScore||0)+'</b></div><div style="color:#047857;font-weight:bold">✔ تمت إضافة النقاط إلى رصيدك</div></div>').join('');
+ }catch(e){box.innerHTML='<span style="color:#b91c1c">تعذر تحميل النتائج: '+safeStudentResult(e.message||e)+'</span>';}
+};
+function safeStudentResult(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+window.submitStudentAnswers = async function() {
+    const identity = window.currentStudentIdentity;
+    if (!identity || !identity.studentKey || !identity.pinHash) {
+        alert('انتهت جلسة التحقق. ارجع وأدخل الصف والاسم والرقم السري مرة أخرى.');
+        return;
+    }
+    const btn = document.querySelector('#stSubmitArea button');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ إرسال الإجابات...'; }
+    const answers = {};
+    window.currentStudentWorksheet.fields.forEach(f => {
+        const input = document.getElementById(f.id);
+        if(input) answers[f.id] = input.value;
+    });
+    const worksheetId = new URLSearchParams(window.location.search).get('id');
+    // وثيقة ثابتة لكل طالب وورقة عمل: تمنع الإرسال الثاني حتى من جهاز آخر.
+    const answerDocId = identity.studentKey + '_' + worksheetId;
+    const answerRef = firestoreDb.collection('student_answers').doc(answerDocId);
+    const lockRef = firestoreDb.collection('homework_submission_locks').doc(answerDocId);
+    try {
+        const submissionBatch = firestoreDb.batch();
+        submissionBatch.set(lockRef, {
+            studentKey: identity.studentKey, worksheetId: worksheetId,
+            schoolId: identity.schoolId, studentClass: identity.studentClass,
+            studentName: identity.studentName, studentPinHash: identity.pinHash,
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        submissionBatch.set(answerRef, {
+            worksheetId: worksheetId,
+            worksheetTitle: window.currentStudentWorksheet.title,
+            studentName: identity.studentName,
+            studentClass: identity.studentClass,
+            schoolId: identity.schoolId,
+            studentKey: identity.studentKey,
+            studentPinHash: identity.pinHash,
+            answers: answers,
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await submissionBatch.commit();
+        document.getElementById('stWorkspace').style.display = 'none';
+        document.getElementById('stSubmitArea').style.display = 'none';
+        document.getElementById('stSuccess').style.display = 'block';
+        document.getElementById('stSuccess').insertAdjacentHTML('beforeend','<p style="color:#166534;font-weight:bold">تم تسجيل إجابتك. لا يمكن إعادة إرسال هذه الورقة مرة أخرى.</p>');
+    } catch(e) {
+        console.error('Student answers submit error:', e);
+        const msg = String(e && (e.code || e.message) || '');
+        if (msg.includes('permission-denied') || msg.includes('PERMISSION_DENIED')) {
+            alert('لم يتم قبول الإرسال. تأكد من صحة الرقم السري، أو ربما سبق لك إرسال هذه الورقة. يسمح بإرسال واحد فقط لكل طالب ولكل ورقة.');
+        } else {
+            alert('تعذر إرسال الإجابات: ' + (e.message || e));
+        }
+        if (btn) { btn.disabled = false; btn.textContent = '✅ إرسال الإجابات'; }
+    }
+}
+
+// ==================== إجابات الطلاب والتصحيح ====================
+function openStudentAnswers() {
+  document.getElementById('studentAnswersModal').style.display = 'flex';
+  loadAnswerWorksheetFilter().then(loadStudentAnswers);
+}
+function closeStudentAnswers() {
+  document.getElementById('studentAnswersModal').style.display = 'none';
+}
+async function loadAnswerWorksheetFilter() {
+  const select = document.getElementById('answersWorksheetFilter');
+  const prior = select.value;
+  try {
+    const snap = await firestoreDb.collection('worksheets').orderBy('createdAt','desc').get();
+    select.innerHTML = '<option value="">كل أوراق العمل</option>';
+    snap.forEach(doc => {
+      const op = document.createElement('option');
+      op.value = doc.id;
+      op.textContent = doc.data().title || 'ورقة عمل بدون عنوان';
+      select.appendChild(op);
+    });
+    if (prior && [...select.options].some(o => o.value === prior)) select.value = prior;
+  } catch(e) {
+    console.error(e);
+  }
+}
+function safeAnswerText(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+}
+async function loadStudentAnswers() {
+  const list = document.getElementById('studentAnswersList');
+  list.innerHTML = '<div class="loading">⏳ جارٍ تحميل الإجابات...</div>';
+  try {
+    let query = firestoreDb.collection('student_answers').orderBy('submittedAt','desc');
+    const worksheetId = document.getElementById('answersWorksheetFilter').value;
+    if (worksheetId) query = query.where('worksheetId','==',worksheetId);
+    const snap = await query.get();
+    if (snap.empty) {
+      list.innerHTML = '<div class="empty-message">لا توجد إجابات مرسلة حتى الآن.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    for (const doc of snap.docs) {
+      const a = doc.data();
+      const answerMap = a.answers || {};
+      const worksheetDoc = await firestoreDb.collection('worksheets').doc(a.worksheetId).get();
+      const worksheetData = worksheetDoc.exists ? worksheetDoc.data() : {};
+      const answerKey = worksheetData.answerKey || {};
+      const norm = v => String(v == null ? '' : v).trim().toLowerCase().replace(/[\\s.,!?;:،؛]/g,'');
+      let correctFields = [];
+      let gradedCount = 0;
+      let correctCount = 0;
+      const answerRows = Object.entries(answerMap).map(([fieldId, value], index) => {
+        const hasKey = Object.prototype.hasOwnProperty.call(answerKey, fieldId) && String(answerKey[fieldId]).trim() !== '';
+        if (hasKey) {
+          gradedCount++;
+          if (norm(value) === norm(answerKey[fieldId])) { correctFields.push(fieldId); correctCount++; }
+        }
+        return `
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #e2e8f0;padding:10px 4px;">
+          <div style="flex:1;min-width:220px;"><b>السؤال ${index+1}</b><div style="white-space:pre-wrap;overflow-wrap:anywhere;color:#334155;">${safeAnswerText(value || '— بدون إجابة —')}</div>
+          <small style="color:#64748b;">${hasKey ? 'الإجابة النموذجية: '+safeAnswerText(answerKey[fieldId]) : 'لا يوجد مفتاح إجابة لهذا السؤال'}</small></div>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+            <span style="font-weight:bold;color:${hasKey && norm(value) === norm(answerKey[fieldId]) ? '#047857' : hasKey ? '#b91c1c' : '#64748b'};">${hasKey ? (norm(value) === norm(answerKey[fieldId]) ? '✔ صحيح آليًا' : '✘ غير صحيح آليًا') : 'بحاجة لمراجعة المعلم'}</span>
+            <label style="font-size:13px;font-weight:bold;color:#334155;">درجة السؤال:
+              <input class="answer-question-grade" data-field-id="${safeAnswerText(fieldId)}" type="number" min="0" max="10" step="1" value="${hasKey && norm(value) === norm(answerKey[fieldId]) ? 10 : 0}" style="width:66px;padding:7px;border:2px solid #93c5fd;border-radius:8px;text-align:center;font-weight:bold;">
+              <span>/ 10</span>
+            </label>
+          </div>
+        </div>`;
+      }).join('');
+      const card = document.createElement('section');
+      card.id = 'answer-card-' + doc.id;
+      card.style.cssText = 'border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin:0 0 14px;background:#fff;';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f1f5f9;padding:12px;border-radius:8px;">
+          <div><h3 style="margin:0;color:#1e3a8a;">${safeAnswerText(a.studentName || 'طالب')}</h3>
+          <div>الصف: ${safeAnswerText(a.studentClass || '—')} | الورقة: ${safeAnswerText(a.worksheetTitle || '—')}</div>
+          <small>تاريخ الإرسال: ${a.submittedAt && a.submittedAt.toDate ? a.submittedAt.toDate().toLocaleString('ar-QA') : '—'}</small></div>
+          <div style="text-align:center;min-width:160px;">
+            <div style="font-weight:bold;color:#047857;">الدرجة المقترحة آليًا</div>
+            <div style="font-size:25px;font-weight:900;color:#1e3a8a;">${correctCount*10} / ${Object.keys(answerMap).length*10}</div>
+            <div style="margin-top:7px;padding:7px 10px;background:#fff7ed;border:1px solid #fdba74;border-radius:9px;">
+              <small style="font-weight:bold;color:#9a3412;">الدرجة النهائية بعد التعديل</small>
+              <div id="final-score-${doc.id}" style="font-size:27px;font-weight:900;color:#c2410c;">${correctCount*10} / ${Object.keys(answerMap).length*10}</div>
+            </div>
+            <small>تمت مراجعة الإجابات النموذجية المتاحة: ${gradedCount} من ${Object.keys(answerMap).length} سؤال</small>
+          </div>
+        </div>
+        <div style="margin-top:12px;">${answerRows}</div>
+        <div style="margin-top:12px;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;">
+          <div style="font-weight:bold;color:#1e40af;margin-bottom:6px;">✏️ يمكنك تعديل درجة كل سؤال قبل الاعتماد</div>
+          <small style="color:#475569;">غيّر الدرجة من 0 إلى 10 لكل سؤال. سيتم جمع الدرجات تلقائيًا، ولن تُرسل النقاط إلا بعد الضغط على زر الاعتماد.</small>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+          <button class="action-btn success" onclick="saveAutomaticStudentScore('${doc.id}',${JSON.stringify(correctFields).replace(/"/g,'&quot;')},${Object.keys(answerMap).length*10})">✅ اعتماد الدرجة المعدلة وإرسال النقاط</button>
+        </div>`;
+      list.appendChild(card);
+      card.querySelectorAll('.answer-question-grade').forEach(input => {
+        input.addEventListener('input', () => recalculateStudentAnswerScore(doc.id));
+        input.addEventListener('change', () => recalculateStudentAnswerScore(doc.id));
+      });
+    }
+  } catch(e) {
+    list.innerHTML = '<div class="error">تعذر قراءة إجابات الطلاب: '+safeAnswerText(e.message || e)+'</div>';
+  }
+}
+function recalculateStudentAnswerScore(answerId) {
+  const card = document.getElementById('answer-card-' + answerId);
+  if (!card) return;
+  const inputs = card.querySelectorAll('.answer-question-grade');
+  let total = 0;
+  let max = inputs.length * 10;
+  inputs.forEach(input => {
+    let value = Number(input.value);
+    if (!Number.isFinite(value)) value = 0;
+    value = Math.max(0, Math.min(10, value));
+    input.value = value;
+    total += value;
+  });
+  const display = document.getElementById('final-score-' + answerId);
+  if (display) display.textContent = total + ' / ' + max;
+}
+
+async function awardHomeworkPointsToEmployee(answerId, score) {
+  const answerSnap = await firestoreDb.collection('student_answers').doc(answerId).get();
+  if (!answerSnap.exists) throw new Error('لم يتم العثور على سجل الإجابة.');
+  const answer = answerSnap.data();
+  const normalized = value => String(value == null ? '' : value).trim().replace(/\s+/g, ' ');
+  const className = normalized(answer.studentClass);
+  const studentName = normalized(answer.studentName);
+  const worksheetId = normalized(answer.worksheetId);
+  // مفتاح ثابت يمنع احتساب الواجب نفسه أكثر من مرة للطالب، حتى لو أرسل إجابتين بوثيقتين مختلفتين.
+  const awardKey = 'HW:' + worksheetId + ':' + className + ':' + studentName.toLowerCase();
+  const amount = Number(score) || 0;
+  const profile = firebaseProfile || {};
+  const role = String(profile.role || '').toLowerCase();
+  const schoolId = String(answer.schoolId || profile.schoolId || '').trim();
+  if (!schoolId) throw new Error('لا يوجد schoolId صالح في إجابة الطالب.');
+  if (profile.schoolId && profile.schoolId !== schoolId && role !== 'admin') {
+    throw new Error('إجابة الطالب لا تتبع المدرسة المرتبطة بحسابك.');
+  }
+
+  // حساب المعلم يحدّث وثيقة الفصل المخصصة له فقط؛ أما مدير المدرسة
+  // والمدير العام فيحدّثان وثيقة بيانات المدرسة/البيانات العامة.
+  const isStaff = role === 'staff';
+  const isSchoolScoped = isStaff || role === 'schoolAdmin';
+  if (isSchoolScoped) {
+    if (isStaff) {
+      const assigned = Array.isArray(profile.classIds) ? profile.classIds.map(normalized) : [];
+      if (!assigned.includes(className)) throw new Error('هذا الفصل غير مسند إلى حساب المعلم: ' + className);
+    }
+    const mirrorRef = firestoreDb.collection('schoolClasses').doc(schoolId + '__' + className);
+    const wasAwarded = await firestoreDb.runTransaction(async transaction => {
+      const mirrorSnap = await transaction.get(mirrorRef);
+      if (!mirrorSnap.exists) throw new Error('لم يتم العثور على سجل الفصل في schoolClasses: ' + className);
+      const mirror = mirrorSnap.data() || {};
+      if (mirror.schoolId !== schoolId || mirror.classId !== className) throw new Error('بيانات الفصل لا تطابق المدرسة أو اسم الفصل.');
+      const classData = mirror.classData || {};
+      if (!Array.isArray(classData.students)) throw new Error('قائمة طلاب الفصل غير موجودة في سجل الفصل.');
+      const student = classData.students.find(item => normalized(item.name) === studentName);
+      if (!student) throw new Error('لم يتم العثور على الطالب بالاسم والصف في برنامج النقاط: ' + studentName + ' - ' + className);
+      const awardedIds = Array.isArray(student.homeworkAwardIds) ? student.homeworkAwardIds : [];
+      if (awardedIds.includes(answerId) || awardedIds.includes(awardKey)) return false;
+      student.points = (Number(student.points) || 0) + amount;
+      student.homeworkPointsSubtotal = (Number(student.homeworkPointsSubtotal) || 0) + amount;
+      student.homeworkAwardIds = awardedIds.concat([answerId, awardKey]);
+      student.homeworkPointsLabel = 'نقاط الإجابة عن الواجب المنزلي';
+      transaction.set(mirrorRef, {
+        schoolId: schoolId,
+        classId: className,
+        classData: classData,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: firebaseCurrentUser.uid
+      }, {merge:true});
+    });
+    // نتيجة المعاملة تحدد هل أضيفت النقاط الآن أم سبق احتساب الواجب.
+    return wasAwarded !== false;
+  }
+
+  const isGlobalAdmin = role === 'admin' && firebaseCurrentUser && firebaseCurrentUser.uid === 'hwPgzTQbdfUJa45G2Wwc79ANNJE2';
+  if (!isGlobalAdmin) throw new Error('حسابك لا يملك صلاحية إضافة نقاط الواجبات.');
+  const dataRef = firestoreDb.collection('schoolData').doc(isGlobalAdmin ? 'main' : schoolId);
+  const wasAwarded = await firestoreDb.runTransaction(async transaction => {
+    const dataSnap = await transaction.get(dataRef);
+    if (!dataSnap.exists) throw new Error('لم يتم العثور على بيانات برنامج النقاط للمدرسة.');
+    const classes = dataSnap.data().allClassesData || {};
+    const classData = classes[className];
+    if (!classData || !Array.isArray(classData.students)) throw new Error('الصف غير موجود في برنامج النقاط: ' + className);
+    const student = classData.students.find(item => normalized(item.name) === studentName);
+    if (!student) throw new Error('لم يتم العثور على الطالب بالاسم والصف في برنامج النقاط: ' + studentName + ' - ' + className);
+    const awardedIds = Array.isArray(student.homeworkAwardIds) ? student.homeworkAwardIds : [];
+    if (awardedIds.includes(answerId) || awardedIds.includes(awardKey)) return false;
+    student.points = (Number(student.points) || 0) + amount;
+    student.homeworkPointsSubtotal = (Number(student.homeworkPointsSubtotal) || 0) + amount;
+    student.homeworkAwardIds = awardedIds.concat([answerId, awardKey]);
+    student.homeworkPointsLabel = 'نقاط الإجابة عن الواجب المنزلي';
+    transaction.set(dataRef, {allClassesData:classes, updatedAt:firebase.firestore.FieldValue.serverTimestamp(), updatedBy:firebaseCurrentUser.uid}, {merge:true});
+    return true;
+  });
+  return wasAwarded !== false;
+}
+
+async function saveAutomaticStudentScore(answerId, correctFields, maxScore) {
+  try {
+    const card = document.getElementById('answer-card-' + answerId);
+    if (!card) throw new Error('تعذر العثور على بطاقة إجابة الطالب.');
+    const gradeInputs = Array.from(card.querySelectorAll('.answer-question-grade'));
+    const calculatedMax = gradeInputs.length * 10;
+    if (!gradeInputs.length) throw new Error('لا توجد درجات أسئلة قابلة للاعتماد.');
+    if (Number(maxScore) !== calculatedMax) maxScore = calculatedMax;
+
+    let score = 0;
+    gradeInputs.forEach(input => {
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 0 || value > 10) {
+        throw new Error('يجب أن تكون درجة كل سؤال بين 0 و10.');
+      }
+      score += value;
+    });
+    score = Math.round(score * 100) / 100;
+
+    const answerRef = firestoreDb.collection('student_answers').doc(answerId);
+    const existingSnap = await answerRef.get();
+    if (!existingSnap.exists) throw new Error('لم يتم العثور على إجابة الطالب.');
+    const existing = existingSnap.data() || {};
+
+    if (existing.pointsCredited === true) {
+      alert('ℹ️ سبق إرسال نقاط هذه الإجابة إلى برنامج النقاط. لا يمكن إرسالها مرة أخرى حتى لا تتكرر النقاط.');
+      return;
+    }
+
+    const automaticScore = gradeInputs.reduce((sum, input) => {
+      const fieldId = input.getAttribute('data-field-id');
+      return sum + (correctFields.includes(fieldId) ? 10 : 0);
+    }, 0);
+    const wasAdjusted = score !== automaticScore;
+
+    const confirmText =
+      'مراجعة الدرجة قبل الإرسال\n\n' +
+      'الدرجة التلقائية: ' + automaticScore + ' / ' + maxScore + '\n' +
+      'الدرجة بعد التعديل: ' + score + ' / ' + maxScore + '\n\n' +
+      'هل تريد اعتماد هذه الدرجة وإرسال ' + score + ' نقطة إلى برنامج النقاط؟';
+    if (!confirm(confirmText)) return;
+
+    const saveButton = card.querySelector('button[onclick*="saveAutomaticStudentScore"]');
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = '⏳ جارٍ حفظ الدرجة وإرسال النقاط...';
+    }
+
+    await answerRef.update({
+      correctFields: correctFields,
+      score: score,
+      maxScore: maxScore,
+      gradingMode: wasAdjusted ? 'manual_adjusted' : 'automatic',
+      scoreAdjustedByAdmin: wasAdjusted,
+      questionGrades: gradeInputs.reduce((obj, input) => {
+        obj[input.getAttribute('data-field-id')] = Number(input.value);
+        return obj;
+      }, {}),
+      gradedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      gradedBy: firebaseCurrentUser.uid
+    });
+
+    try {
+      const credited = await awardHomeworkPointsToEmployee(answerId, score);
+      if (credited === false) {
+        await answerRef.update({pointsCredited:false, creditStatus:'duplicate', duplicateSubmission:true});
+        alert('⚠️ هذا الطالب حصل بالفعل على نقاط ورقة العمل نفسها. تم حفظ الدرجة، لكن لم تُضف نقاط مرة ثانية.');
+        if (saveButton) { saveButton.disabled = true; saveButton.textContent = '⚠️ سبق احتساب هذا الواجب'; }
+        return;
+      }
+      await answerRef.update({pointsCredited:true, creditStatus:'credited'});
+      const creditedAnswer = (await answerRef.get()).data() || {};
+      await firestoreDb.collection('homework_results').doc(answerId).set({
+        schoolId: creditedAnswer.schoolId || 'global',
+        worksheetId: creditedAnswer.worksheetId || '',
+        worksheetTitle: creditedAnswer.worksheetTitle || '',
+        studentName: creditedAnswer.studentName || '',
+        studentClass: creditedAnswer.studentClass || '',
+        score: score,
+        maxScore: Number(maxScore)||0,
+        awardedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'credited'
+      }, {merge:true});
+      alert('✅ تم اعتماد الدرجة ' + score + ' من ' + maxScore + ' وإرسال ' + score + ' نقطة إلى برنامج النقاط بنجاح.');
+      if (saveButton) { saveButton.disabled = true; saveButton.textContent = '✅ تم الاعتماد وإرسال النقاط'; }
+    } catch (awardError) {
+      alert('تم حفظ الدرجة (' + score + '/' + maxScore + ')، لكن تعذّر إرسال النقاط إلى برنامج الموظفين. يمكنك المحاولة مرة أخرى. السبب: ' + awardError.message);
+      if (saveButton) { saveButton.disabled = false; saveButton.textContent = '🔁 إعادة محاولة إرسال النقاط'; }
+    }
+  } catch(e) {
+    alert('❌ تعذر اعتماد الدرجة: ' + e.message + '\nقد تسمح قواعد Firestore الحالية بتعديل إجابات الطلاب للمدير العام فقط.');
+    const card = document.getElementById('answer-card-' + answerId);
+    const saveButton = card && card.querySelector('button[onclick*="saveAutomaticStudentScore"]');
+    if (saveButton) { saveButton.disabled = false; saveButton.textContent = '✅ اعتماد الدرجة المعدلة وإرسال النقاط'; }
+  }
+}
+
+</script>
+</body>
+</html>
